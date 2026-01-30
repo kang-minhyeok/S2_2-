@@ -11,6 +11,22 @@ from sqlalchemy import create_engine, Column, Integer, String, DateTime
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 import datetime
+from passlib.context import CryptContext
+from pydantic import BaseModel
+from fastapi import Depends
+from sqlalchemy.orm import Session
+from fastapi.staticfiles import StaticFiles
+
+
+# [중요] static 폴더 마운트
+# 이 코드는 반드시 API 엔드포인트(app.get 등) 설정보다 위에 있는 것이 좋습니다.
+app.mount("/static", StaticFiles(directory="static"), name="static")
+
+# 메인 페이지 (http://IP:8000/ 접속 시)
+@app.get("/")
+async def read_index():
+    # static 폴더 안의 index.html을 반환합니다.
+    return FileResponse(os.path.join("static", "index.html"))
 
 # --- [1. 데이터베이스 설정 구간] ---
 DATABASE_URL = "mysql+pymysql://root:0727@localhost:3306/safety_db"
@@ -45,6 +61,28 @@ model = YOLO('yolov8n-pose.pt').to(device)
 color_buffer = {}
 latest_track_data = {}
 
+
+# 비밀번호 암호화 설정
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
+# 모바일에서 받을 데이터 규격 (추후 수정)
+class UserCreate(BaseModel):
+    username: str
+    password: str
+    email: str = None
+
+# 비밀번호 암호화 함수
+def get_password_hash(password):
+    return pwd_context.hash(password)
+# 기존 Base를 상속받아 새로운 테이블 정의
+class User(Base):
+    __tablename__ = "users"
+
+    id = Column(Integer, primary_key=True, index=True)
+    username = Column(String(50), unique=True, nullable=False) # 아이디
+    password = Column(String(255), nullable=False)             # 암호화된 비번
+    email = Column(String(100), nullable=True)                # 이메일
+    created_at = Column(DateTime, default=datetime.datetime.now) # 가입일
 
 """
 표준 Hue 범위 기반 색상 판별 로직
@@ -223,3 +261,31 @@ async def get_detection_logs(color: str = Query(None)):
     finally:
         db.close()
 
+
+
+# DB 세션을 가져오는 헬퍼 함수
+def get_db():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
+# 회원가입 API
+@app.post("/register")
+async def register_user(user_data: UserCreate, db: Session = Depends(get_db)):
+    # 1. 비밀번호 암호화
+    hashed_pwd = pwd_context.hash(user_data.password)
+
+    # 2. 새로운 사용자 객체 생성
+    new_user = User(
+        username=user_data.username,
+        password=hashed_pwd,
+        email=user_data.email
+    )
+
+    # 3. DB에 저장 (SQLAlchemy가 INSERT 쿼리를 자동 생성)
+    db.add(new_user)
+    db.commit()
+    db.refresh(new_user)
+
+    return {"status": "success", "username": new_user.username}
