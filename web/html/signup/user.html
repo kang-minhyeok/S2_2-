@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>일반 회원가입</title>
+<link rel="stylesheet" href="/css/signup.css" />
+</head>
+<body>
+	<main class="auth">
+	<a class="brand" href="/">가드허브</a>
+		<section class="auth__card">
+			<header class="auth__header">
+				<h1 class="auth__title">일반 회원가입</h1>
+				<p class="auth__subtitle">필수 정보를 입력해 주세요.</p>
+			</header>
+
+			<p class="auth__error" th:if="${message}" th:text="${message}"></p>
+
+			<form class="auth__form" method="post" action="/signup/user"
+				th:object="${form}">
+				<div class="field">
+					<label class="field__label" for="name">이름</label> <input
+						class="field__input" id="name" type="text" th:field="*{name}"
+						required />
+				</div>
+
+				<div class="field">
+					<label class="field__label" for="birth">생년월일</label> <input
+						class="field__input" id="birth" type="date" th:field="*{birth}"
+						required />
+				</div>
+
+				<div class="field">
+					<label class="field__label" for="username">아이디</label> <input
+						class="field__input" id="username" type="text"
+						th:field="*{username}" required />
+				</div>
+
+				<div class="field">
+					<label class="field__label" for="password">비밀번호</label> <input
+						class="field__input" id="password" type="password"
+						th:field="*{password}" required />
+				</div>
+
+				<button class="btn btn--primary" type="submit">가입하기</button>
+			</form>
+
+			<footer class="auth__footer">
+				<a class="auth__link" href="/signup">유형 다시 선택</a>
+			</footer>
+		</section>
+	</main>
+</body>
+</html>
