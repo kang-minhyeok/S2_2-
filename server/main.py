@@ -28,7 +28,7 @@ Base = declarative_base()
 
 app = FastAPI()
 # [중요] static 폴더 마운트
-app.mount("/static", StaticFiles(directory="static"), name="static")
+app.mount("/", StaticFiles(directory="static", html=True), name="static")
 
 # 메인 페이지 (http://IP:8000/ 접속 시)
 @app.get("/")
