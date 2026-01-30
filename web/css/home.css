@@ -1,0 +1,184 @@
+/* ===== GuardHub Home CSS (match access-denied style) ===== */
+:root {
+	--bg: #f6f7f9;
+	--card: #ffffff;
+	--text: #111827;
+	--muted: #6b7280;
+	--line: #e5e7eb;
+	--primary: #111827;
+	--shadow: 0 14px 30px rgba(0, 0, 0, .10);
+}
+
+* {
+	box-sizing: border-box;
+}
+
+html, body {
+	height: 100%;
+}
+
+body {
+	margin: 0;
+	font-family: system-ui, "Pretendard", sans-serif;
+	background: var(--bg);
+	color: var(--text);
+	line-height: 1.4;
+}
+
+/* 바깥 레이아웃: 가운데 카드 */
+.page {
+	min-height: 100vh;
+	padding: 28px 18px 64px;
+	display: grid;
+	place-items: start center;
+}
+
+.card {
+	width: min(1280px, 94vw);
+	background: var(--card);
+	border: 1px solid var(--line);
+	border-radius: 16px;
+	box-shadow: var(--shadow);
+	padding: 22px 22px 26px;
+}
+
+/* ---------- 상단 ---------- */
+.header {
+	display: flex;
+	align-items: center;
+	gap: 22px;
+	padding: 6px 4px 14px;
+	border-bottom: 1px solid var(--line);
+}
+
+/* 로고 */
+.logo {
+	font-size: 22px;
+	font-weight: 900;
+	color: var(--text);
+	text-decoration: none;
+	white-space: nowrap;
+}
+
+.logo:hover {
+	opacity: .85;
+}
+
+/* 메뉴 */
+.menu {
+	display: flex;
+	gap: 16px;
+	flex-wrap: wrap;
+	align-items: center;
+}
+
+.menu a {
+	font-size: 13px;
+	color: #1f2937;
+	text-decoration: none;
+	white-space: nowrap;
+	padding: 6px 8px;
+	border-radius: 10px;
+}
+
+.menu a:hover {
+	background: rgba(17, 24, 39, .06);
+}
+
+/* 우측 로그인/회원가입 or 로그아웃 */
+.auth {
+	margin-left: auto;
+	font-size: 13px;
+	white-space: nowrap;
+	display: flex;
+	align-items: center;
+	gap: 10px;
+}
+
+.auth a {
+	color: var(--text);
+	text-decoration: none;
+}
+
+.auth a:hover {
+	text-decoration: underline;
+}
+
+.auth span {
+	opacity: .65;
+}
+
+/* 로그아웃 버튼을 링크처럼 보이게 */
+.logout-btn {
+	background: none;
+	border: 0;
+	padding: 0;
+	cursor: pointer;
+	font: inherit;
+	color: var(--text);
+	font-weight: 800;
+}
+
+.logout-btn:hover {
+	text-decoration: underline;
+}
+
+/* ---------- 배너 ---------- */
+.banner {
+	margin-top: 18px;
+	height: clamp(240px, 28vh, 360px);
+	background: #c85b55; /* 기존 유지 */
+	border-radius: 14px; /* ✅ 카드 톤에 맞게 살짝 둥글게 */
+}
+
+/* ---------- 하단 퀵메뉴 ---------- */
+.quick {
+	margin-top: 18px;
+	display: grid;
+	grid-template-columns: repeat(2, 1fr); /* 홈에 2개만 있으니 2칸이 더 예쁨 */
+	gap: 12px;
+}
+
+.quick-item {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	min-height: 56px;
+	border-radius: 14px;
+	border: 1px solid var(--line);
+	background: #fff;
+	text-decoration: none;
+	color: var(--text);
+	font-weight: 800;
+	font-size: 14px;
+}
+
+.quick-item:hover {
+	background: #f9fafb;
+}
+
+/* ---------- 모바일 ---------- */
+@media ( max-width : 640px) {
+	.page {
+		padding: 18px 14px 56px;
+	}
+	.card {
+		padding: 16px;
+	}
+	.header {
+		flex-direction: column;
+		align-items: flex-start;
+		gap: 10px;
+	}
+	.auth {
+		margin-left: 0;
+		align-self: flex-end;
+	}
+	.banner {
+		height: 200px;
+		border-radius: 14px;
+	}
+	.quick {
+		grid-template-columns: 1fr;
+	}
+}

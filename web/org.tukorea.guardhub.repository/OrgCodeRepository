@@ -1,0 +1,8 @@
+package org.tukorea.guardhub.repository;
+
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.tukorea.guardhub.domain.OrgCode;
+
+public interface OrgCodeRepository extends JpaRepository<OrgCode, Long> {
+	boolean existsByCodeAndActiveTrue(String code);
+}

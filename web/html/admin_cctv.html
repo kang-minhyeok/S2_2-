@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title th:text="|CCTV 자료 - ${doc.title}|">CCTV 자료</title>
+<link rel="stylesheet" href="/css/admin_cctv.css" />
+</head>
+<body>
+
+	<header class="top">
+		<a class="logo" href="/">가드허브</a>
+	</header>
+
+	<main class="wrap">
+		<div class="head">
+			<div>
+				<h2 class="page-title">CCTV 자료</h2>
+				<div class="meta" th:text="|문서: ${doc.title}|">문서: 자료 제목</div>
+			</div>
+
+			<div class="actions">
+				<a class="btn" th:href="@{|/admin/${doc.id}|}">상세로</a> <a
+					class="btn" href="/admin">목록으로</a>
+			</div>
+		</div>
+
+		<section class="single-video">
+
+			<div class="panel">
+				<div class="panel-head">
+					<div class="panel-title">CCTV 영상</div>
+					<div class="panel-sub">DB 연결 후 영상이 등록되면 자동으로 재생됩니다</div>
+				</div>
+
+				<div class="video-box">
+					<div class="placeholder">
+						<div class="ph-icon">🎥</div>
+						<div class="ph-title">등록된 CCTV 영상이 없습니다</div>
+						<div class="ph-desc">DB 연결 후 영상이 추가되면 여기에 표시됩니다.</div>
+					</div>
+
+					<!-- 🔹 나중에 DB 연결되면 이 video만 활성화
+        <video class="player" controls th:if="${videoUrl != null}">
+          <source th:src="${videoUrl}" type="video/mp4" />
+        </video>
+        -->
+				</div>
+			</div>
+		</section>
+	</main>
+</body>
+</html>

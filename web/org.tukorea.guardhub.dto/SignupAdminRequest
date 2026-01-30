@@ -1,0 +1,14 @@
+package org.tukorea.guardhub.dto;
+
+import lombok.Getter;
+import lombok.Setter;
+
+@Getter
+@Setter
+public class SignupAdminRequest {
+	private String orgCode;
+	private String name;
+	private String birth; // yyyy-MM-dd
+	private String username;
+	private String password;
+}

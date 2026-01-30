@@ -1,0 +1,55 @@
+package org.tukorea.guardhub.service;
+
+import lombok.RequiredArgsConstructor;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.stereotype.Service;
+import org.tukorea.guardhub.domain.User;
+import org.tukorea.guardhub.dto.SignupAdminRequest;
+import org.tukorea.guardhub.dto.SignupUserRequest;
+import org.tukorea.guardhub.repository.OrgCodeRepository;
+import org.tukorea.guardhub.repository.UserRepository;
+
+import java.time.LocalDate;
+
+@Service
+@RequiredArgsConstructor
+public class UserService {
+
+	private final UserRepository userRepository;
+	private final PasswordEncoder passwordEncoder;
+	private final OrgCodeRepository orgCodeRepository; // ✅ 추가
+
+	private LocalDate parseBirth(String birth) {
+		return LocalDate.parse(birth);
+	}
+
+	public void signupUser(SignupUserRequest req) {
+		if (userRepository.existsByUsername(req.getUsername())) {
+			throw new IllegalArgumentException("이미 사용 중인 아이디입니다.");
+		}
+
+		User user = User.builder().username(req.getUsername()).password(passwordEncoder.encode(req.getPassword()))
+				.name(req.getName()).birth(parseBirth(req.getBirth())).orgCode(null).role("USER").build();
+
+		userRepository.save(user);
+	}
+
+	public void signupAdmin(SignupAdminRequest req) {
+		if (userRepository.existsByUsername(req.getUsername())) {
+			throw new IllegalArgumentException("이미 사용 중인 아이디입니다.");
+		}
+		if (req.getOrgCode() == null || req.getOrgCode().isBlank()) {
+			throw new IllegalArgumentException("소속 코드를 입력해 주세요.");
+		}
+
+		// ✅ 핵심: 유효한 소속 코드인지 확인
+		if (!orgCodeRepository.existsByCodeAndActiveTrue(req.getOrgCode())) {
+			throw new IllegalArgumentException("유효하지 않은 소속 코드입니다.");
+		}
+
+		User admin = User.builder().username(req.getUsername()).password(passwordEncoder.encode(req.getPassword()))
+				.name(req.getName()).birth(parseBirth(req.getBirth())).orgCode(req.getOrgCode()).role("ADMIN").build();
+
+		userRepository.save(admin);
+	}
+}

@@ -1,0 +1,113 @@
+* {
+	box-sizing: border-box;
+}
+
+body {
+	margin: 0;
+	font-family: system-ui, "Pretendard", sans-serif;
+	color: #111;
+	background: #fff;
+}
+
+/* 상단 */
+.top {
+	width: min(1100px, 92vw);
+	margin: 26px auto 0;
+}
+
+.logo {
+	font-size: 28px;
+	font-weight: 800;
+	text-decoration: none;
+	color: #111;
+}
+
+/* 본문 */
+.wrap {
+	width: min(1100px, 92vw);
+	margin: 20px auto 60px;
+}
+
+.page-title {
+	font-size: 18px;
+	font-weight: 700;
+	margin-bottom: 18px;
+}
+
+/* 상세 테이블 */
+.detail .table {
+	width: 100%;
+	border: 1px solid #555;
+}
+
+.detail .row {
+	display: grid;
+	grid-template-columns: 160px 1fr;
+	border-top: 1px solid #555;
+}
+
+.detail .row:first-child {
+	border-top: 0;
+}
+
+.detail .cell {
+	padding: 14px 16px;
+	border-left: 1px solid #555;
+	font-size: 14px;
+}
+
+.detail .cell:first-child {
+	border-left: 0;
+	background: #e5e5e5;
+	font-weight: 700;
+}
+
+/* 내용 영역 크게 */
+.detail .row.big .cell {
+	min-height: 140px;
+	align-items: flex-start;
+}
+
+.detail .row.big .cell.value {
+	white-space: pre-wrap;
+	line-height: 1.6;
+	background: #ededed;
+}
+
+/* 기본 값 영역 */
+.detail .cell.value {
+	background: #ededed;
+}
+
+/* 하단 버튼 */
+.actions {
+	margin-top: 26px;
+	display: flex;
+	justify-content: flex-end;
+	gap: 12px;
+}
+
+.actions .btn {
+	padding: 10px 18px;
+	border: 1px solid #333;
+	background: #e5e5e5;
+	text-decoration: none;
+	color: #111;
+	font-size: 14px;
+	cursor: pointer;
+}
+
+.actions .btn:hover {
+	background: #dcdcdc;
+}
+
+/* 모바일 */
+@media ( max-width : 720px) {
+	.detail .row {
+		grid-template-columns: 120px 1fr;
+	}
+	.detail .cell {
+		font-size: 13px;
+		padding: 12px;
+	}
+}
