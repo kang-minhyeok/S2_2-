@@ -1,0 +1,109 @@
+package org.tukorea.guardhub.controller;
+
+import java.util.ArrayList;
+import java.util.List;
+
+import org.springframework.stereotype.Controller;
+import org.springframework.ui.Model;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+
+@Controller
+public class AdminController {
+
+	// 목록
+	@GetMapping("/admin")
+	public String adminList(Model model) {
+		List<Doc> docs = new ArrayList<>();
+		docs.add(new Doc(1L, "CCTV 협조 요청 절차", "2026-01-12", "관리자", "상세 내용 1"));
+		docs.add(new Doc(2L, "사건 접수 후 처리 흐름", "2026-01-11", "관리자", "상세 내용 2"));
+		docs.add(new Doc(3L, "신고 데이터 확인 방법", "2026-01-10", "관리자", "상세 내용 3"));
+		docs.add(new Doc(4L, "관계기관 연락망", "2026-01-09", "관리자", "상세 내용 4"));
+		docs.add(new Doc(5L, "서류 양식 모음", "2026-01-08", "관리자", "상세 내용 5"));
+
+		model.addAttribute("docs", docs);
+		return "admin"; // templates/admin.html
+	}
+
+	// 상세
+	@GetMapping("/admin/{id}")
+	public String adminDetail(@PathVariable("id") Long id, Model model) {
+		// 더미 상세(지금은 DB 없이)
+		Doc doc = new Doc(id, "자료 제목 " + id, "2026-01-12", "관리자", "여기에 상세 내용이 들어갑니다.");
+		model.addAttribute("doc", doc);
+
+		return "admin_detail"; // templates/admin_detail.html
+	}
+
+	// 더미 DTO (임시)
+	public static class Doc {
+		private Long id;
+		private String title;
+		private String date;
+		private String writer;
+		private String content;
+
+		public Doc(Long id, String title, String date, String writer, String content) {
+			this.id = id;
+			this.title = title;
+			this.date = date;
+			this.writer = writer;
+			this.content = content;
+		}
+
+		public Long getId() {
+			return id;
+		}
+
+		public String getTitle() {
+			return title;
+		}
+
+		public String getDate() {
+			return date;
+		}
+
+		public String getWriter() {
+			return writer;
+		}
+
+		public String getContent() {
+			return content;
+		}
+	}
+
+	// CCTV 페이지
+	@GetMapping("/admin/{id}/cctv")
+	public String adminCctv(@PathVariable("id") Long id, Model model) {
+		// 상세에서 쓰던 doc 같이 전달 (상단에 제목 표시용)
+		Doc doc = new Doc(id, "자료 제목 " + id, "2026-01-12", "관리자", "여기에 상세 내용이 들어갑니다.");
+		model.addAttribute("doc", doc);
+
+		// 더미 CCTV 영상 목록 (static에 넣어둘 mp4 경로)
+		List<Cctv> cctvs = new ArrayList<>();
+		cctvs.add(new Cctv("현관 CCTV", "/videos/sample1.mp4"));
+		cctvs.add(new Cctv("복도 CCTV", "/videos/sample2.mp4"));
+
+		model.addAttribute("cctvs", cctvs);
+		return "admin_cctv"; // templates/admin_cctv.html
+	}
+
+	// 더미 CCTV DTO (임시)
+	public static class Cctv {
+		private String title;
+		private String url;
+
+		public Cctv(String title, String url) {
+			this.title = title;
+			this.url = url;
+		}
+
+		public String getTitle() {
+			return title;
+		}
+
+		public String getUrl() {
+			return url;
+		}
+	}
+}
