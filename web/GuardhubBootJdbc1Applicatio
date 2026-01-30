@@ -1,0 +1,13 @@
+package org.tukorea.guardhub;
+
+import org.springframework.boot.SpringApplication;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
+
+@SpringBootApplication
+public class GuardhubBootJdbc1Application {
+
+	public static void main(String[] args) {
+		SpringApplication.run(GuardhubBootJdbc1Application.class, args);
+	}
+
+}
