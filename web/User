@@ -1,0 +1,38 @@
+package org.tukorea.guardhub.domain;
+
+import jakarta.persistence.*;
+import lombok.*;
+
+import java.time.LocalDate;
+
+@Entity
+@Table(name = "users")
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
+public class User {
+
+	@Id
+	@GeneratedValue(strategy = GenerationType.IDENTITY)
+	private Long id;
+
+	@Column(nullable = false, unique = true, length = 50)
+	private String username; // 아이디
+
+	@Column(nullable = false)
+	private String password;
+
+	@Column(nullable = false, length = 50)
+	private String name;
+
+	@Column(nullable = false)
+	private LocalDate birth; // 생년월일
+
+	@Column(length = 30)
+	private String orgCode; // 소속 코드(관계자만)
+
+	@Column(nullable = false, length = 20)
+	private String role; // USER, ADMIN
+}
