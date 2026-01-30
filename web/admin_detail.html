@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title th:text="|관계자용 자료 - ${doc.title}|">관계자용 자료 - GuardHub</title>
+<link rel="stylesheet" href="/css/admin_detail.css" />
+</head>
+<body>
+
+	<header class="top">
+		<a class="logo" href="/">가드허브</a>
+	</header>
+
+	<main class="wrap">
+		<h2 class="page-title">관계자용 자료</h2>
+
+		<section class="detail">
+			<div class="table">
+
+				<div class="row">
+					<div class="cell label">제목</div>
+					<div class="cell value" th:text="${doc.title}">제목</div>
+				</div>
+
+				<div class="row">
+					<div class="cell label">등록일</div>
+					<div class="cell value" th:text="${doc.date}">2026-01-12</div>
+				</div>
+
+				<div class="row">
+					<div class="cell label">작성자</div>
+					<div class="cell value" th:text="${doc.writer}">관리자</div>
+				</div>
+
+				<div class="row big">
+					<div class="cell label">내용</div>
+					<div class="cell value" th:text="${doc.content}">상세 내용</div>
+				</div>
+
+			</div>
+
+			<div class="actions">
+				<a class="btn" href="/admin">목록으로</a>
+				<a class="btn" th:href="@{|/admin/${doc.id}/cctv|}">CCTV 자료</a>
+			</div>
+		</section>
+	</main>
+
+</body>
+</html>
