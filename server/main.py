@@ -27,17 +27,6 @@ SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
 app = FastAPI()
-# [중요] static 폴더 마운트
-app.mount("/", StaticFiles(directory="static", html=True), name="static")
-
-# 메인 페이지 (http://IP:8000/ 접속 시)
-@app.get("/")
-async def read_index():
-    # static 폴더 안의 index.html을 반환합니다.
-    return FileResponse(os.path.join("static", "home.html"))
-
-
-
 
 class DetectionResult(Base):
     __tablename__ = "detection_results"
@@ -291,3 +280,16 @@ async def register_user(user_data: UserCreate, db: Session = Depends(get_db)):
     db.refresh(new_user)
 
     return {"status": "success", "username": new_user.username}
+
+
+
+
+
+# 메인 페이지 (http://IP:8000/ 접속 시)
+@app.get("/")
+async def read_index():
+    # static 폴더 안의 index.html을 반환합니다.
+    return FileResponse(os.path.join("static", "home.html"))
+
+# [중요] static 폴더 마운트
+app.mount("/", StaticFiles(directory="static", html=True), name="static")
