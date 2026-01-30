@@ -1,0 +1,55 @@
+package org.tukorea.guardhub.controller;
+
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Controller;
+import org.springframework.ui.Model;
+import org.springframework.web.bind.annotation.*;
+import org.tukorea.guardhub.dto.SignupAdminRequest;
+import org.tukorea.guardhub.dto.SignupUserRequest;
+import org.tukorea.guardhub.service.UserService;
+
+@Controller
+@RequiredArgsConstructor
+public class SignupController {
+
+	private final UserService userService;
+
+	@GetMapping("/signup")
+	public String signupSelect() {
+		return "signup/select";
+	}
+
+	@GetMapping("/signup/user")
+	public String signupUserPage(Model model) {
+		model.addAttribute("form", new SignupUserRequest());
+		return "signup/user";
+	}
+
+	@PostMapping("/signup/user")
+	public String signupUser(@ModelAttribute("form") SignupUserRequest form, Model model) {
+		try {
+			userService.signupUser(form);
+			return "redirect:/login"; // ✅ 회원가입 후 로그인 화면
+		} catch (IllegalArgumentException e) {
+			model.addAttribute("message", e.getMessage());
+			return "signup/user";
+		}
+	}
+
+	@GetMapping("/signup/admin")
+	public String signupAdminPage(Model model) {
+		model.addAttribute("form", new SignupAdminRequest());
+		return "signup/admin";
+	}
+
+	@PostMapping("/signup/admin")
+	public String signupAdmin(@ModelAttribute("form") SignupAdminRequest form, Model model) {
+		try {
+			userService.signupAdmin(form);
+			return "redirect:/login"; // ✅ 회원가입 후 로그인 화면
+		} catch (IllegalArgumentException e) {
+			model.addAttribute("message", e.getMessage());
+			return "signup/admin";
+		}
+	}
+}
