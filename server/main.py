@@ -18,8 +18,16 @@ from sqlalchemy.orm import Session
 from fastapi.staticfiles import StaticFiles
 
 
+
+
+# --- [1. 데이터베이스 설정 구간] ---
+DATABASE_URL = "mysql+pymysql://root:0727@localhost:3306/safety_db"
+engine = create_engine(DATABASE_URL)
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+Base = declarative_base()
+
+app = FastAPI()
 # [중요] static 폴더 마운트
-# 이 코드는 반드시 API 엔드포인트(app.get 등) 설정보다 위에 있는 것이 좋습니다.
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
 # 메인 페이지 (http://IP:8000/ 접속 시)
@@ -28,14 +36,7 @@ async def read_index():
     # static 폴더 안의 index.html을 반환합니다.
     return FileResponse(os.path.join("static", "index.html"))
 
-# --- [1. 데이터베이스 설정 구간] ---
-DATABASE_URL = "mysql+pymysql://root:0727@localhost:3306/safety_db"
-engine = create_engine(DATABASE_URL)
-# [해결] image_6203be.png의 Unresolved reference 에러를 잡기 위해 SessionLocal 정의
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-Base = declarative_base()
 
-app = FastAPI()
 
 class DetectionResult(Base):
     __tablename__ = "detection_results"
