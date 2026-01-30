@@ -38,6 +38,7 @@ async def read_index():
 
 
 
+
 class DetectionResult(Base):
     __tablename__ = "detection_results"
     id = Column(Integer, primary_key=True, index=True)
