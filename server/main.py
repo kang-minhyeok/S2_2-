@@ -34,7 +34,7 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 @app.get("/")
 async def read_index():
     # static 폴더 안의 index.html을 반환합니다.
-    return FileResponse(os.path.join("static", "index.html"))
+    return FileResponse(os.path.join("static", "home.html"))
 
 
 
