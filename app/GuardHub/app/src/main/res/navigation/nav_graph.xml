@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="utf-8"?>
+<navigation xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/nav_graph"
+    app:startDestination="@id/homeFragment">
+
+    <!-- 메인 화면 -->
+    <fragment
+        android:id="@+id/homeFragment"
+        android:name="com.guardhub.app.fragment_home"
+        android:label="메인 화면">
+
+        <!-- 긴급 신고 버튼 → 신고 화면 -->
+        <action
+            android:id="@+id/action_homeFragment_to_reportFragment"
+            app:destination="@id/reportFragment" />
+
+        <!-- 로그인 이동 -->
+        <action
+            android:id="@+id/action_homeFragment_to_loginFragment"
+            app:destination="@id/loginFragment" />
+    </fragment>
+
+    <!-- 신고 화면 -->
+    <fragment
+        android:id="@+id/reportFragment"
+        android:name="com.guardhub.app.fragment_report"
+        android:label="신고 화면" />
+
+    <!-- 로그인 화면 -->
+    <fragment
+        android:id="@+id/loginFragment"
+        android:name="com.guardhub.app.fragment_login"
+        android:label="로그인">
+
+        <!-- 회원가입 이동 -->
+        <action
+            android:id="@+id/action_loginFragment_to_signupFragment"
+            app:destination="@id/signupFragment" />
+
+        <!-- 로그인 성공 → 메인 -->
+        <action
+            android:id="@+id/action_loginFragment_to_homeFragment"
+            app:destination="@id/homeFragment" />
+    </fragment>
+
+    <!-- 회원가입 화면 -->
+    <fragment
+        android:id="@+id/signupFragment"
+        android:name="com.guardhub.app.fragment_signup"
+        android:label="회원가입">
+
+        <!-- 회원가입 완료 후 로그인으로 -->
+        <action
+            android:id="@+id/action_signupFragment_to_loginFragment"
+            app:destination="@id/loginFragment" />
+    </fragment>
+
+    <fragment
+        android:id="@+id/mypageFragment"
+        android:name="com.guardhub.app.fragment_mypage"
+        android:label="마이페이지" />
+
+
+</navigation>
