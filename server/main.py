@@ -305,7 +305,7 @@ async def read_index(request: Request):
     })
 
 
-
+# 로그인 화면 연결
 @app.get("/login")
 async def read_login(request: Request, error: bool = False):
     return templates.TemplateResponse("login.html", {
@@ -313,4 +313,17 @@ async def read_login(request: Request, error: bool = False):
         "error": error # URL에 ?error=true가 붙으면 에러 메시지를 띄웁니다.
     })
 
+# 회원가입 화면 연결
+@app.get("/signup")
+async def signup_page(request: Request):
+    return templates.TemplateResponse("signup.html", {"request": request})
 
+# 관리자 화면 연결
+@app.get("/admin")
+async def admin_page(request: Request):
+    return templates.TemplateResponse("admin.html", {"request": request})
+
+# (선택) 아까 home.html 메뉴에 있던 다른 페이지들도 미리 만들어두면 좋습니다.
+@app.get("/news")
+async def news_page(request: Request):
+    return templates.TemplateResponse("news.html", {"request": request})
