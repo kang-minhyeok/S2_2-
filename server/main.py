@@ -313,24 +313,4 @@ async def read_login(request: Request, error: bool = False):
         "error": error # URL에 ?error=true가 붙으면 에러 메시지를 띄웁니다.
     })
 
-# 1. 정적 파일이 담긴 폴더 경로 (현재 server/static)
-STATIC_DIR = "templates"
-# 2. 폴더 내 모든 파일을 훑어서 HTML 주소 자동 생성
-if os.path.exists(STATIC_DIR):
-    for root, dirs, files in os.walk(STATIC_DIR):
-        for file in files:
-            if file.endswith(".html"):
-                # 파일명에서 확장자 제거 (예: login.html -> login)
-                name = os.path.splitext(file)[0]
 
-                # 실제 파일의 전체 경로 계산
-                file_path = os.path.join(root, file)
-
-                # 주소와 파일 연결 함수 정의 (클로저 사용)
-                def create_route(path):
-                    return lambda: FileResponse(path)
-
-                # 주소 등록 (예: @app.get("/login"))
-                # 이미 정의된 루트('/')나 중요한 API 주소는 건너뛰도록 설정
-                if name not in ["index", "home"]:
-                    app.add_api_route(f"/{name}", create_route(file_path), methods=["GET"])
