@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/drawerMenu"
+    android:layout_width="280dp"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="@android:color/white"
+    android:paddingTop="?attr/actionBarSize">
+
+    <!-- ===== 메뉴 타이틀 ===== -->
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="GuardHub"
+        android:textSize="20sp"
+        android:textStyle="bold"
+        android:layout_marginBottom="24dp"/>
+
+    <!-- ===== 로그인 ===== -->
+    <TextView
+        android:id="@+id/menuLogin"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="로그인"
+        android:textSize="16sp"
+        android:padding="16dp"
+        android:clickable="true"
+        android:foreground="?attr/selectableItemBackground" />
+
+    <!-- ===== 회원가입 ===== -->
+    <TextView
+        android:id="@+id/menuSignup"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="회원가입"
+        android:textSize="16sp"
+        android:padding="16dp"
+        android:clickable="true"
+        android:foreground="?attr/selectableItemBackground" />
+
+    <!-- ===== 마이페이지 ===== -->
+    <TextView
+        android:id="@+id/menuMypage"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="마이페이지"
+        android:textSize="16sp"
+        android:padding="16dp"
+        android:visibility="gone"
+        android:clickable="true"
+        android:foreground="?attr/selectableItemBackground" />
+
+    <!-- ===== 로그아웃 ===== -->
+    <TextView
+        android:id="@+id/menuLogout"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="로그아웃"
+        android:textSize="16sp"
+        android:padding="16dp"
+        android:visibility="gone"
+        android:clickable="true"
+        android:foreground="?attr/selectableItemBackground" />
+
+</LinearLayout>

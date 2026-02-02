@@ -1,0 +1,121 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:padding="16dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical">
+
+        <!-- ===== 아이디 (수정 불가) ===== -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="아이디"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/tvMyId"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:padding="12dp"
+            android:background="#EEEEEE" />
+
+        <!-- ===== 이름 ===== -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="이름"
+            android:textStyle="bold"
+            android:layout_marginTop="16dp" />
+
+        <EditText
+            android:id="@+id/etMyName"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="이름 입력" />
+
+        <!-- ===== 전화번호 ===== -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="전화번호"
+            android:textStyle="bold"
+            android:layout_marginTop="16dp" />
+
+        <EditText
+            android:id="@+id/etMyPhone"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="전화번호 입력"
+            android:inputType="phone" />
+
+        <!-- 주민등록번호 -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="주민등록번호"
+            android:textSize="14sp"
+            android:layout_marginTop="16dp"/>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical">
+
+            <!-- 앞자리 -->
+            <EditText
+                android:id="@+id/etResidentFront"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:inputType="number"
+                android:maxLength="6"/>
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text=" - "
+                android:textSize="18sp"
+                android:paddingHorizontal="6dp"/>
+
+            <!-- 뒷자리 (숨김) -->
+            <EditText
+                android:id="@+id/etResidentBack"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:inputType="numberPassword"
+                android:maxLength="7"/>
+        </LinearLayout>
+
+        <!-- ===== 기관명 (있을 경우) ===== -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="기관명"
+            android:textStyle="bold"
+            android:layout_marginTop="16dp" />
+
+        <TextView
+            android:id="@+id/tvMyOrganization"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:padding="12dp"
+            android:background="#EEEEEE"
+            android:text="미지정" />
+
+        <!-- ===== 저장 버튼 ===== -->
+        <Button
+            android:id="@+id/btnSave"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:backgroundTint="@android:color/black"
+            android:text="정보 저장"
+            android:layout_marginTop="24dp" />
+
+    </LinearLayout>
+</ScrollView>
