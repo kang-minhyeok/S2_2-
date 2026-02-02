@@ -16,8 +16,8 @@ from pydantic import BaseModel
 from fastapi import Depends
 from sqlalchemy.orm import Session
 from fastapi.staticfiles import StaticFiles
-
-
+from fastapi.templating import Jinja2Templates
+from fastapi import Request
 
 
 # --- [1. 데이터베이스 설정 구간] ---
@@ -25,8 +25,6 @@ DATABASE_URL = "mysql+pymysql://root:0727@localhost:3306/safety_db"
 engine = create_engine(DATABASE_URL)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
-
-app = FastAPI()
 
 class DetectionResult(Base):
     __tablename__ = "detection_results"
@@ -38,6 +36,29 @@ class DetectionResult(Base):
 
 # 테이블 자동 생성 (DB 탭에서 확인 가능)
 Base.metadata.create_all(bind=engine)
+
+# 비밀번호 암호화 설정
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+# 모바일에서 받을 데이터 규격 (추후 수정)
+class UserCreate(BaseModel):
+    username: str
+    password: str
+    email: str = None
+# 비밀번호 암호화 함수
+def get_password_hash(password):
+    return pwd_context.hash(password)
+# 기존 Base를 상속받아 새로운 테이블 정의
+class User(Base):
+    __tablename__ = "users"
+
+    id = Column(Integer, primary_key=True, index=True)
+    username = Column(String(50), unique=True, nullable=False) # 아이디
+    password = Column(String(255), nullable=False)             # 암호화된 비번
+    email = Column(String(100), nullable=True)                # 이메일
+    created_at = Column(DateTime, default=datetime.datetime.now) # 가입일
+
+
+app = FastAPI()
 
 # 1. GPU 장치 설정 및 로드
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
@@ -52,28 +73,6 @@ model = YOLO('yolov8n-pose.pt').to(device)
 color_buffer = {}
 latest_track_data = {}
 
-
-# 비밀번호 암호화 설정
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-
-# 모바일에서 받을 데이터 규격 (추후 수정)
-class UserCreate(BaseModel):
-    username: str
-    password: str
-    email: str = None
-
-# 비밀번호 암호화 함수
-def get_password_hash(password):
-    return pwd_context.hash(password)
-# 기존 Base를 상속받아 새로운 테이블 정의
-class User(Base):
-    __tablename__ = "users"
-
-    id = Column(Integer, primary_key=True, index=True)
-    username = Column(String(50), unique=True, nullable=False) # 아이디
-    password = Column(String(255), nullable=False)             # 암호화된 비번
-    email = Column(String(100), nullable=True)                # 이메일
-    created_at = Column(DateTime, default=datetime.datetime.now) # 가입일
 
 """
 표준 Hue 범위 기반 색상 판별 로직
@@ -283,16 +282,39 @@ async def register_user(user_data: UserCreate, db: Session = Depends(get_db)):
 
 
 
+# 템플릿 파일이 위치한 폴더를 지정합니다. (현재 static 폴더를 그대로 사용)
+templates = Jinja2Templates(directory="static")
 
+# 1. 정적 파일(CSS/JS) 연결
+app.mount("/static", StaticFiles(directory="static"), name="static")
+
+# 2. Jinja2 템플릿 엔진 설정
+templates = Jinja2Templates(directory="templates")
 
 # 메인 페이지 (http://IP:8000/ 접속 시)
 @app.get("/")
-async def read_index():
-    # static 폴더 안의 index.html을 반환합니다.
-    return FileResponse(os.path.join("static", "home.html"))
-# 1. 정적 파일이 담긴 폴더 경로 (현재 server/static)
-STATIC_DIR = "static"
+async def read_index(request: Request):
+    # 실제로는 세션이나 쿠키에서 로그인 여부를 확인해야 합니다.
+    # 테스트를 위해 임시로 False를 넣습니다.
+    is_logged_in = False
 
+    # 템플릿 파일명과 함께 데이터를 넘겨줍니다.
+    return templates.TemplateResponse("home.html", {
+        "request": request,
+        "is_logged_in": is_logged_in
+    })
+
+
+
+@app.get("/login")
+async def read_login(request: Request, error: bool = False):
+    return templates.TemplateResponse("login.html", {
+        "request": request,
+        "error": error # URL에 ?error=true가 붙으면 에러 메시지를 띄웁니다.
+    })
+
+# 1. 정적 파일이 담긴 폴더 경로 (현재 server/static)
+STATIC_DIR = "templates"
 # 2. 폴더 내 모든 파일을 훑어서 HTML 주소 자동 생성
 if os.path.exists(STATIC_DIR):
     for root, dirs, files in os.walk(STATIC_DIR):
@@ -312,5 +334,3 @@ if os.path.exists(STATIC_DIR):
                 # 이미 정의된 루트('/')나 중요한 API 주소는 건너뛰도록 설정
                 if name not in ["index", "home"]:
                     app.add_api_route(f"/{name}", create_route(file_path), methods=["GET"])
-# [중요] static 폴더 마운트
-app.mount("/", StaticFiles(directory="static", html=True), name="static")
