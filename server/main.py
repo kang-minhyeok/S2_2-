@@ -280,8 +280,7 @@ async def register_user(user_data: UserCreate, db: Session = Depends(get_db)):
 
 
 
-# 템플릿 파일이 위치한 폴더를 지정합니다. (현재 static 폴더를 그대로 사용)
-templates = Jinja2Templates(directory="static")
+
 
 # 1. 정적 파일(CSS/JS) 연결
 app.mount("/static", StaticFiles(directory="static"), name="static")
