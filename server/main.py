@@ -18,7 +18,7 @@ from sqlalchemy.orm import Session
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from fastapi import Request
-
+from fastapi import HTTPException, Response
 
 # --- [1. 데이터베이스 설정 구간] ---
 DATABASE_URL = "mysql+pymysql://root:0727@localhost:3306/safety_db"
@@ -34,17 +34,20 @@ class DetectionResult(Base):
     video_name = Column(String(100))
     detected_at = Column(DateTime, default=datetime.datetime.now)
 
-# 테이블 자동 생성 (DB 탭에서 확인 가능)
-Base.metadata.create_all(bind=engine)
 
 # 비밀번호 암호화 설정
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+pwd_context = CryptContext(schemes=["pbkdf2_sha256"], deprecated="auto")
 # 모바일에서 받을 데이터 규격 (추후 수정)
 class UserCreate(BaseModel):
     username: str
     password: str
     name: str
     email: str = None
+# 로그인 시 정보 확인용 class
+class UserLogin(BaseModel):
+    username: str
+    password: str
+
 # 비밀번호 암호화 함수
 def get_password_hash(password):
     return pwd_context.hash(password)
@@ -58,6 +61,9 @@ class User(Base):
     name = Column(String(50), nullable=False)                  # 사용자 이름
     email = Column(String(100), nullable=True)                # 이메일
     created_at = Column(DateTime, default=datetime.datetime.now) # 가입일
+
+# 테이블 자동 생성 (DB 탭에서 확인 가능)
+Base.metadata.create_all(bind=engine)
 
 
 app = FastAPI()
@@ -105,6 +111,7 @@ def detect_color_name(roi):
     return "Color"
 
 
+
 """
 시계열 분석
 10프레임을 비교해 객체의 색상 판별해 오차를 줄임
@@ -116,6 +123,7 @@ def get_smoothed_color(obj_id, new_color):
     color_buffer[obj_id].append(new_color)
     if len(color_buffer[obj_id]) < 4: return new_color
     return Counter(color_buffer[obj_id]).most_common(1)[0][0]
+
 
 
 """
@@ -306,12 +314,21 @@ async def read_index(request: Request):
 
 
 # 로그인 화면 연결
-@app.get("/login")
-async def read_login(request: Request, error: bool = False):
-    return templates.TemplateResponse("login.html", {
-        "request": request,
-        "error": error # URL에 ?error=true가 붙으면 에러 메시지를 띄웁니다.
-    })
+@app.post("/login")
+async def login(user_data: UserLogin, db: Session = Depends(get_db)):
+    # 1. DB에서 해당 아이디의 사용자 찾기
+    user = db.query(User).filter(User.username == user_data.username).first()
+
+    # 2. 사용자가 없거나 비밀번호가 틀린 경우
+    if not user or not pwd_context.verify(user_data.password, user.password):
+        raise HTTPException(status_code=400, detail="아이디 또는 비밀번호가 틀렸습니다.")
+
+    # 3. 로그인 성공 시 응답 (나중에 세션이나 토큰을 추가할 수 있습니다)
+    return {
+        "status": "success",
+        "message": f"{user.name}님 환영합니다!",
+        "redirect_url": "/admin" # 로그인 성공 시 관리자 페이지로 이동 제안
+    }
 
 # 회원가입 화면 연결
 @app.get("/signup")
