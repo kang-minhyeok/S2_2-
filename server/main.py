@@ -4,7 +4,7 @@ import numpy as np
 import time
 import torch
 from collections import deque, Counter
-from fastapi import FastAPI, File, UploadFile, Query
+from fastapi import FastAPI, File, UploadFile, Query, BackgroundTasks
 from fastapi.responses import FileResponse
 from ultralytics import YOLO
 from sqlalchemy import create_engine, Column, Integer, String, DateTime
@@ -120,10 +120,10 @@ def get_smoothed_color(obj_id, new_color):
 영상 분석할 때 사용하는 API입니다.
 """
 @app.post("/analyze/video")
-async def analyze_video(content: str = Query(None), file: UploadFile = File(...)):
+async def analyze_video(content: str = Query(None)):
     global latest_track_data, color_buffer
     ts = int(time.time())
-    in_path, out_path = f"in_{ts}.mp4", f"out_{ts}.mp4"
+    in_path, out_path = f"test.mp4", f"out_{ts}.mp4"
     cap, out = None, None
 
     latest_track_data = {}
@@ -132,8 +132,6 @@ async def analyze_video(content: str = Query(None), file: UploadFile = File(...)
     final_results = {}
 
     try:
-        with open(in_path, "wb") as f:
-            f.write(await file.read())
 
         color_map = {"검은": "Black", "흰": "White", "빨간": "Red", "파란": "Blue",
                      "노란": "Yellow", "초록": "Green", "보라": "Purple", "회": "Gray", "분홍": "Pink"}
