@@ -43,6 +43,7 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 class UserCreate(BaseModel):
     username: str
     password: str
+    name: str
     email: str = None
 # 비밀번호 암호화 함수
 def get_password_hash(password):
@@ -54,6 +55,7 @@ class User(Base):
     id = Column(Integer, primary_key=True, index=True)
     username = Column(String(50), unique=True, nullable=False) # 아이디
     password = Column(String(255), nullable=False)             # 암호화된 비번
+    name = Column(String(50), nullable=False)                  # 사용자 이름
     email = Column(String(100), nullable=True)                # 이메일
     created_at = Column(DateTime, default=datetime.datetime.now) # 가입일
 
@@ -268,6 +270,7 @@ async def register_user(user_data: UserCreate, db: Session = Depends(get_db)):
     new_user = User(
         username=user_data.username,
         password=hashed_pwd,
+        name=user_data.name,
         email=user_data.email
     )
 
@@ -276,7 +279,7 @@ async def register_user(user_data: UserCreate, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(new_user)
 
-    return {"status": "success", "username": new_user.username}
+    return {"status": "success", "username": new_user.username, "name": new_user.name}
 
 
 
