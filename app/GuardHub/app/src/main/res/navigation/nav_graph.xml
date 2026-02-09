@@ -19,6 +19,10 @@
         <action
             android:id="@+id/action_homeFragment_to_loginFragment"
             app:destination="@id/loginFragment" />
+
+        <action
+            android:id="@+id/action_homeFragment_to_neighborhoodNewsFragment"
+            app:destination="@id/neighborhoodNewsFragment" />
     </fragment>
 
     <!-- 신고 화면 -->
@@ -61,5 +65,8 @@
         android:name="com.guardhub.app.fragment_mypage"
         android:label="마이페이지" />
 
-
+    <fragment
+        android:id="@+id/neighborhoodNewsFragment"
+        android:name="com.guardhub.app.fragment_local_culture"
+        android:label="우리동네신문" />
 </navigation>

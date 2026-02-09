@@ -22,6 +22,13 @@ class fragment_home : Fragment(R.layout.fragment_home) {
                 R.id.action_homeFragment_to_reportFragment
             )
         }
+        val btn = view.findViewById<Button>(R.id.btnNews)
+
+        btn.setOnClickListener {
+            findNavController().navigate(
+                R.id.action_homeFragment_to_neighborhoodNewsFragment
+            )
+        }
     }
 }
 
