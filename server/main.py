@@ -37,12 +37,20 @@ class DetectionResult(Base):
 
 # 비밀번호 암호화 설정
 pwd_context = CryptContext(schemes=["pbkdf2_sha256"], deprecated="auto")
-# 모바일에서 받을 데이터 규격 (추후 수정)
+# 회원가입 시 받을 데이터 규격 (추후 수정)
 class UserCreate(BaseModel):
     username: str
     password: str
     name: str
     email: str = None
+
+# 앱에서 서버로 신고 정보를 보낼 때의 형식
+class ReportCreate(BaseModel):
+    name: str
+    phone_number: str
+    ssn: str
+    content: str
+
 # 로그인 시 정보 확인용 class
 class UserLogin(BaseModel):
     username: str
@@ -51,7 +59,8 @@ class UserLogin(BaseModel):
 # 비밀번호 암호화 함수
 def get_password_hash(password):
     return pwd_context.hash(password)
-# 기존 Base를 상속받아 새로운 테이블 정의
+
+# 기존 Base를 상속받아 users 테이블 정의
 class User(Base):
     __tablename__ = "users"
 
@@ -61,6 +70,20 @@ class User(Base):
     name = Column(String(50), nullable=False)                  # 사용자 이름
     email = Column(String(100), nullable=True)                # 이메일
     created_at = Column(DateTime, default=datetime.datetime.now) # 가입일
+
+# 신고 내역 저장을 위한 테이블 모델
+class IncidentReport(Base):
+    __tablename__ = "incident_reports"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String(50), nullable=False) # 신고자 성함
+    phone_number = Column(String(20), nullable=False) # 전화번호
+    ssn = Column(String(255), nullable=False) # 주민번호 (암호화 저장)
+    content = Column(String(500), nullable=True) # 신고 상세 내용
+    video_path = Column(String(200), nullable=True) # 분석할 영상 경로
+    created_at = Column(DateTime, default=datetime.datetime.now)
+
+
 
 # 테이블 자동 생성 (DB 탭에서 확인 가능)
 Base.metadata.create_all(bind=engine)
@@ -127,22 +150,26 @@ def get_smoothed_color(obj_id, new_color):
 
 
 """
-영상 분석할 때 사용하는 API입니다.
+영상 분석할 때 사용하는 함수입니다.
 """
-@app.post("/analyze/video")
-async def analyze_video(content: str = Query(None)):
+# [수정] 기존 analyze_video의 핵심 로직을 함수로 분리
+def process_video_analysis(report_id: int, content: str = None):
+    # 별도의 DB 세션을 생성합니다. (백그라운드 작업용)
+    db = SessionLocal()
+
     global latest_track_data, color_buffer
     ts = int(time.time())
-    in_path, out_path = f"test.mp4", f"out_{ts}.mp4"
+
+    # [주의] 실제 서비스에서는 신고 내용에 포함된 비디오 경로를 사용해야 합니다.
+    # 일단 현재 코드의 test.mp4를 유지합니다.
+    in_path, out_path = "test.mp4", f"out_{ts}_{report_id}.mp4"
     cap, out = None, None
 
     latest_track_data = {}
     color_buffer = {}
-    # [추가] 한 영상 내에서 분석된 최종 결과를 담는 딕셔너리
     final_results = {}
 
     try:
-
         color_map = {"검은": "Black", "흰": "White", "빨간": "Red", "파란": "Blue",
                      "노란": "Yellow", "초록": "Green", "보라": "Purple", "회": "Gray", "분홍": "Pink"}
         target_color = next((v for k, v in color_map.items() if content and k in content), "")
@@ -159,6 +186,7 @@ async def analyze_video(content: str = Query(None)):
             frame_count += 1
 
             if frame_count % 3 == 0:
+                # YOLO 추적 로직 실행
                 results = model.track(frame, persist=True, verbose=False, conf=0.3, device=device)
                 new_tracks = {}
 
@@ -173,6 +201,7 @@ async def analyze_video(content: str = Query(None)):
                             new_tracks[obj_id]["box"] = boxes[i]
                             continue
 
+                        # 포즈 기반 ROI 추출 및 색상 감지
                         roi = None
                         if i < len(kpts) and all(kpts[i][j][1] > 0 for j in [5, 6]):
                             pk = kpts[i]
@@ -184,11 +213,11 @@ async def analyze_video(content: str = Query(None)):
                         if roi is not None and roi.size > 0:
                             stable_color = get_smoothed_color(obj_id, detect_color_name(roi))
                             new_tracks[obj_id] = {"box": boxes[i], "color": stable_color}
-                            # [추가] 최종 결과 업데이트 (가장 최신의 안정적인 색상으로 갱신)
                             final_results[obj_id] = stable_color
 
                 latest_track_data = new_tracks
 
+            # 결과 그리기 및 저장
             for obj_id, data in latest_track_data.items():
                 if target_color == "" or target_color.lower() in data["color"].lower():
                     x1, y1, x2, y2 = data["box"]
@@ -197,30 +226,41 @@ async def analyze_video(content: str = Query(None)):
                                 cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2)
             out.write(frame)
 
-        # --- [3. 분석 완료 후 DB 저장] ---
-        db = SessionLocal()
+        # --- [DB 저장 단계] ---
         try:
             for obj_id, color in final_results.items():
                 new_record = DetectionResult(
                     object_id=int(obj_id),
                     detected_color=color,
                     video_name=out_path
+                    # 여기에 report_id 컬럼이 있다면 추가: report_id=report_id
                 )
                 db.add(new_record)
+
+            # [추가] 신고서 테이블에도 분석된 비디오 경로 업데이트
+            report = db.query(IncidentReport).filter(IncidentReport.id == report_id).first()
+            if report:
+                report.video_path = out_path
+
             db.commit()
-            print(f"✅ DB 저장 성공: {len(final_results)}건의 탐지 기록이 저장되었습니다.")
+            print(f"✅ 신고번호 {report_id}: {len(final_results)}건 탐지 기록 저장 완료")
         except Exception as e:
             db.rollback()
-            print(f"❌ DB 저장 중 에러 발생: {e}")
-        finally:
-            db.close()
+            print(f"❌ 분석 결과 저장 실패: {e}")
 
     finally:
         if out: out.release()
         if cap: cap.release()
-        if os.path.exists(in_path): os.remove(in_path)
+        db.close()
 
-    return FileResponse(out_path, media_type="video/mp4", filename=out_path)
+
+# DB 세션을 가져오는 헬퍼 함수
+def get_db():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
 
 """
 앱이나 웹에서 탐지 기록을 조회할 때 사용하는 API입니다.
@@ -261,13 +301,7 @@ async def get_detection_logs(color: str = Query(None)):
 
 
 
-# DB 세션을 가져오는 헬퍼 함수
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
+
 # 회원가입 API
 @app.post("/register")
 async def register_user(user_data: UserCreate, db: Session = Depends(get_db)):
@@ -289,8 +323,36 @@ async def register_user(user_data: UserCreate, db: Session = Depends(get_db)):
 
     return {"status": "success", "username": new_user.username, "name": new_user.name}
 
+# 신고 접수 API
+@app.post("/report/submit")
+async def submit_report(
+        report: ReportCreate,
+        background_tasks: BackgroundTasks,
+        db: Session = Depends(get_db)
+):
+    # 1. 주민번호 암호화 저장
+    hashed_ssn = pwd_context.hash(report.ssn)
 
+    new_report = IncidentReport(
+        name=report.name,
+        phone_number=report.phone_number,
+        ssn=hashed_ssn,
+        content=report.content
+    )
 
+    db.add(new_report)
+    db.commit()
+    db.refresh(new_report)
+
+    # 2. [핵심] 비디오 분석 함수를 백그라운드 작업으로 등록
+    # 사용자가 보낸 신고내용(content)을 함께 넘겨 특정 색상을 찾게 합니다.
+    background_tasks.add_task(process_video_analysis, report_id=new_report.id, content=report.content)
+
+    return {
+        "status": "success",
+        "message": "신고 접수가 완료되었습니다. 비디오 분석이 백그라운드에서 시작됩니다.",
+        "report_id": new_report.id
+    }
 
 
 # 1. 정적 파일(CSS/JS) 연결
