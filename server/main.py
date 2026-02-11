@@ -21,7 +21,7 @@ from fastapi import Request
 from fastapi import HTTPException, Response
 
 # --- [1. 데이터베이스 설정 구간] ---
-DATABASE_URL = "mysql+pymysql://root:0727@localhost:3306/safety_db"
+DATABASE_URL = "mysql+pymysql://root:0727@localhost:3306/safety_db?charset=utf8mb4"
 engine = create_engine(DATABASE_URL)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
