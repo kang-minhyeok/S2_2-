@@ -354,7 +354,6 @@ async def submit_report(
         "report_id": new_report.id
     }
 
-
 # 1. 정적 파일(CSS/JS) 연결
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
