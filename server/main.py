@@ -318,7 +318,7 @@ async def register_user(user_data: UserCreate, db: Session = Depends(get_db)):
         id=user_data.id,
         password=hashed_pwd,
         residentFront=user_data.residentFront,
-        residentBack=hashed_res_back,
+        residentBack=hashed_resident_back,
         name=user_data.name,
         phone=user_data.phone
     )
