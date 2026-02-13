@@ -72,7 +72,7 @@ class User(Base):
     residentFront = Column(String(6), nullable=False)           # 주민번호 앞자리
     residentBack = Column(String(255), nullable=False)          # 암호화된 주민번호 뒷자리
     name = Column(String(50), nullable=False)               # 사용자 이름
-    phone_number = Column(String(20), nullable=False)       # 휴대폰 번호
+    phone = Column(String(20), nullable=False)       # 휴대폰 번호
     created_at = Column(DateTime, default=datetime.datetime.now) # 가입일
 
 # 신고 내역 저장을 위한 테이블 모델
