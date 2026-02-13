@@ -328,7 +328,7 @@ async def register_user(user_data: UserCreate, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(new_user)
 
-    return {"status": "success", "username": new_user.username, "name": new_user.name}
+    return {"status": "success", "id": new_user.id, "name": new_user.name}
 
 # 신고 접수 API
 @app.post("/report/submit")
