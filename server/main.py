@@ -316,10 +316,9 @@ async def register_user(user_data: UserCreate, db: Session = Depends(get_db)):
     # 2. 새로운 사용자 객체 생성
     new_user = User(
         id=user_data.id,
-        username=user_data.username,
         password=hashed_pwd,
         residentFront=user_data.residentFront,
-        residentBack=hashed_resident_back,
+        residentBack=hashed_res_back,
         name=user_data.name,
         phone=user_data.phone
     )
