@@ -66,13 +66,13 @@ def get_password_hash(password):
 class User(Base):
     __tablename__ = "users"
 
-    id = Column(Integer, primary_key=True, index=True)
-    username = Column(String(50), unique=True, nullable=False) # 아이디
-    password = Column(String(255), nullable=False)             # 암호화된 비밀번호
-    ssn_front = Column(String(6), nullable=False)              # 주민번호 앞자리
-    ssn_back = Column(String(255), nullable=False)             # 암호화된 주민번호 뒷자리
-    name = Column(String(50), nullable=False)                  # 이름
-    phone_number = Column(String(20), nullable=False)          # 휴대폰 번호
+    user_no = Column(Integer, primary_key=True, index=True) # DB 관리용 번호
+    id = Column(String(50), unique=True, nullable=False)   # 로그인 아이디
+    password = Column(String(255), nullable=False)          # 암호화된 비밀번호
+    ssn_front = Column(String(6), nullable=False)           # 주민번호 앞자리
+    ssn_back = Column(String(255), nullable=False)          # 암호화된 주민번호 뒷자리
+    name = Column(String(50), nullable=False)               # 사용자 이름
+    phone_number = Column(String(20), nullable=False)       # 휴대폰 번호
     created_at = Column(DateTime, default=datetime.datetime.now) # 가입일
 
 # 신고 내역 저장을 위한 테이블 모델
@@ -315,12 +315,13 @@ async def register_user(user_data: UserCreate, db: Session = Depends(get_db)):
 
     # 2. 새로운 사용자 객체 생성
     new_user = User(
+        id=user_data.id,
         username=user_data.username,
         password=hashed_pwd,
         ssn_front=user_data.ssn_front,
         ssn_back=hashed_ssn_back,
         name=user_data.name,
-        phone_number=user_data.phone_number
+        phone=user_data.phone
     )
 
     # 3. DB에 저장 (SQLAlchemy가 INSERT 쿼리를 자동 생성)
