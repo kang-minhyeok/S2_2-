@@ -55,7 +55,7 @@ class ReportCreate(BaseModel):
 
 # 로그인 시 정보 확인용 class
 class UserLogin(BaseModel):
-    username: str
+    id: str
     password: str
 
 # 비밀번호 암호화 함수
@@ -388,6 +388,7 @@ async def login(user_data: UserLogin, db: Session = Depends(get_db)):
     user = db.query(User).filter(User.id == user_data.id).first()
 
     # 2. 사용자가 없거나 비밀번호가 틀린 경우
+    # pwd_context.verify가 암호화된 비번을 알아서 대조
     if not user or not pwd_context.verify(user_data.password, user.password):
         raise HTTPException(status_code=400, detail="아이디 또는 비밀번호가 틀렸습니다.")
 
@@ -395,7 +396,8 @@ async def login(user_data: UserLogin, db: Session = Depends(get_db)):
     return {
         "status": "success",
         "message": f"{user.name}님 환영합니다!",
-        "redirect_url": "/admin" # 로그인 성공 시 관리자 페이지로 이동 제안
+        "user_no": user.user_no, # db식별자인 숫자번호넘겨줘 관리
+        "redirect_url": "/admin"
     }
 
 # 회원가입 화면 연결
