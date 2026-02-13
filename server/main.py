@@ -385,7 +385,7 @@ async def read_index(request: Request):
 @app.post("/login")
 async def login(user_data: UserLogin, db: Session = Depends(get_db)):
     # 1. DB에서 해당 아이디의 사용자 찾기
-    user = db.query(User).filter(User.username == user_data.username).first()
+    user = db.query(User).filter(User.id == user_data.id).first()
 
     # 2. 사용자가 없거나 비밀번호가 틀린 경우
     if not user or not pwd_context.verify(user_data.password, user.password):
