@@ -39,10 +39,12 @@ class DetectionResult(Base):
 pwd_context = CryptContext(schemes=["pbkdf2_sha256"], deprecated="auto")
 # 회원가입 시 받을 데이터 규격 (추후 수정)
 class UserCreate(BaseModel):
-    username: str
+    id: str
     password: str
+    ssn_front: str
+    ssn_back: str
     name: str
-    email: str = None
+    phone: str
 
 # 앱에서 서버로 신고 정보를 보낼 때의 형식
 class ReportCreate(BaseModel):
@@ -66,9 +68,11 @@ class User(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     username = Column(String(50), unique=True, nullable=False) # 아이디
-    password = Column(String(255), nullable=False)             # 암호화된 비번
-    name = Column(String(50), nullable=False)                  # 사용자 이름
-    email = Column(String(100), nullable=True)                # 이메일
+    password = Column(String(255), nullable=False)             # 암호화된 비밀번호
+    ssn_front = Column(String(6), nullable=False)              # 주민번호 앞자리
+    ssn_back = Column(String(255), nullable=False)             # 암호화된 주민번호 뒷자리
+    name = Column(String(50), nullable=False)                  # 이름
+    phone_number = Column(String(20), nullable=False)          # 휴대폰 번호
     created_at = Column(DateTime, default=datetime.datetime.now) # 가입일
 
 # 신고 내역 저장을 위한 테이블 모델
@@ -305,15 +309,18 @@ async def get_detection_logs(color: str = Query(None)):
 # 회원가입 API
 @app.post("/register")
 async def register_user(user_data: UserCreate, db: Session = Depends(get_db)):
-    # 1. 비밀번호 암호화
+    # 1. 비밀번호와 주민번호 뒷자리를 암호화합니다.
     hashed_pwd = pwd_context.hash(user_data.password)
+    hashed_ssn_back = pwd_context.hash(user_data.ssn_back)
 
     # 2. 새로운 사용자 객체 생성
     new_user = User(
         username=user_data.username,
         password=hashed_pwd,
+        ssn_front=user_data.ssn_front,
+        ssn_back=hashed_ssn_back,
         name=user_data.name,
-        email=user_data.email
+        phone_number=user_data.phone_number
     )
 
     # 3. DB에 저장 (SQLAlchemy가 INSERT 쿼리를 자동 생성)
