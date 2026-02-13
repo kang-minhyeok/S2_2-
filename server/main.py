@@ -41,8 +41,8 @@ pwd_context = CryptContext(schemes=["pbkdf2_sha256"], deprecated="auto")
 class UserCreate(BaseModel):
     id: str
     password: str
-    ssn_front: str
-    ssn_back: str
+    residentFront: str
+    residentBack: str
     name: str
     phone: str
 
@@ -69,8 +69,8 @@ class User(Base):
     user_no = Column(Integer, primary_key=True, index=True) # DB 관리용 번호
     id = Column(String(50), unique=True, nullable=False)   # 로그인 아이디
     password = Column(String(255), nullable=False)          # 암호화된 비밀번호
-    ssn_front = Column(String(6), nullable=False)           # 주민번호 앞자리
-    ssn_back = Column(String(255), nullable=False)          # 암호화된 주민번호 뒷자리
+    residentFront = Column(String(6), nullable=False)           # 주민번호 앞자리
+    residentBack = Column(String(255), nullable=False)          # 암호화된 주민번호 뒷자리
     name = Column(String(50), nullable=False)               # 사용자 이름
     phone_number = Column(String(20), nullable=False)       # 휴대폰 번호
     created_at = Column(DateTime, default=datetime.datetime.now) # 가입일
@@ -311,15 +311,15 @@ async def get_detection_logs(color: str = Query(None)):
 async def register_user(user_data: UserCreate, db: Session = Depends(get_db)):
     # 1. 비밀번호와 주민번호 뒷자리를 암호화합니다.
     hashed_pwd = pwd_context.hash(user_data.password)
-    hashed_ssn_back = pwd_context.hash(user_data.ssn_back)
+    hashed_resident_back = pwd_context.hash(user_data.residentBack)
 
     # 2. 새로운 사용자 객체 생성
     new_user = User(
         id=user_data.id,
         username=user_data.username,
         password=hashed_pwd,
-        ssn_front=user_data.ssn_front,
-        ssn_back=hashed_ssn_back,
+        residentFront=user_data.residentFront,
+        ssn_back=hashed_resident_back,
         name=user_data.name,
         phone=user_data.phone
     )
