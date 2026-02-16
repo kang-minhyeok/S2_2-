@@ -411,7 +411,7 @@ async def login_page(request: Request, error: bool = False, logout: bool = False
         "logout": logout
     })
 # 1. 회원가입 유형 선택 페이지
-@app.get("/signup", response_class=HTMLResponse)
+@app.get("/signup/select", response_class=HTMLResponse)
 async def signup_select_page(request: Request):
     return templates.TemplateResponse("select.html", {"request": request})
 
