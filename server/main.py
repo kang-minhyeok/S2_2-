@@ -382,7 +382,7 @@ async def read_index(request: Request):
     })
 
 
-# 로그인 화면 연결(앱)
+# 로그인 기능(앱)
 @app.post("/login")
 async def login(user_data: UserLogin, db: Session = Depends(get_db)):
     # 1. DB에서 해당 아이디의 사용자 찾기
@@ -413,19 +413,19 @@ async def login_page(request: Request, error: bool = False, logout: bool = False
 # 1. 회원가입 유형 선택 페이지
 @app.get("/signup/select", response_class=HTMLResponse)
 async def signup_select_page(request: Request):
-    return templates.TemplateResponse("select.html", {"request": request})
+    return templates.TemplateResponse("signup/select.html", {"request": request})
 
 # 2. 일반 회원가입 양식 페이지
 @app.get("/signup/user", response_class=HTMLResponse)
 async def signup_user_page(request: Request):
     # 실제 가입 양식이 담긴 html 파일명을 입력하세요 (예: signup_user.html)
-    return templates.TemplateResponse("signup_user.html", {"request": request})
+    return templates.TemplateResponse("signup/user.html", {"request": request})
 
 # 3. 관계자용 회원가입 양식 페이지
 @app.get("/signup/admin", response_class=HTMLResponse)
 async def signup_admin_page(request: Request):
     # 실제 관계자 가입 양식이 담긴 html 파일명을 입력하세요 (예: signup_admin.html)
-    return templates.TemplateResponse("signup_admin.html", {"request": request})
+    return templates.TemplateResponse("signup/admin.html", {"request": request})
 
 # 관리자 화면 연결
 @app.get("/admin")
