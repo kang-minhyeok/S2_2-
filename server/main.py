@@ -19,6 +19,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from fastapi import Request
 from fastapi import HTTPException, Response
+from fastapi.responses import HTMLResponse
 
 # --- [1. 데이터베이스 설정 구간] ---
 DATABASE_URL = "mysql+pymysql://root:0727@localhost:3306/safety_db?charset=utf8mb4"
@@ -368,7 +369,7 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
 
 # 메인 페이지 (http://IP:8000/ 접속 시)
-@app.get("/")
+@app.get("/", response_class=HTMLResponse)
 async def read_index(request: Request):
     # 실제로는 세션이나 쿠키에서 로그인 여부를 확인해야 합니다.
     # 테스트를 위해 임시로 False를 넣습니다.
@@ -381,7 +382,7 @@ async def read_index(request: Request):
     })
 
 
-# 로그인 화면 연결
+# 로그인 화면 연결(앱)
 @app.post("/login")
 async def login(user_data: UserLogin, db: Session = Depends(get_db)):
     # 1. DB에서 해당 아이디의 사용자 찾기
@@ -400,10 +401,31 @@ async def login(user_data: UserLogin, db: Session = Depends(get_db)):
         "redirect_url": "/admin"
     }
 
-# 회원가입 화면 연결
-@app.get("/signup")
-async def signup_page(request: Request):
-    return templates.TemplateResponse("signup.html", {"request": request})
+
+# 1. 로그인 페이지 보여주기 (GET)
+@app.get("/login", response_class=HTMLResponse)
+async def login_page(request: Request, error: bool = False, logout: bool = False):
+    return templates.TemplateResponse("login.html", {
+        "request": request,
+        "error": error,
+        "logout": logout
+    })
+# 1. 회원가입 유형 선택 페이지
+@app.get("/signup", response_class=HTMLResponse)
+async def signup_select_page(request: Request):
+    return templates.TemplateResponse("select.html", {"request": request})
+
+# 2. 일반 회원가입 양식 페이지
+@app.get("/signup/user", response_class=HTMLResponse)
+async def signup_user_page(request: Request):
+    # 실제 가입 양식이 담긴 html 파일명을 입력하세요 (예: signup_user.html)
+    return templates.TemplateResponse("signup_user.html", {"request": request})
+
+# 3. 관계자용 회원가입 양식 페이지
+@app.get("/signup/admin", response_class=HTMLResponse)
+async def signup_admin_page(request: Request):
+    # 실제 관계자 가입 양식이 담긴 html 파일명을 입력하세요 (예: signup_admin.html)
+    return templates.TemplateResponse("signup_admin.html", {"request": request})
 
 # 관리자 화면 연결
 @app.get("/admin")
@@ -414,3 +436,8 @@ async def admin_page(request: Request):
 @app.get("/news")
 async def news_page(request: Request):
     return templates.TemplateResponse("news.html", {"request": request})
+
+
+@app.get("/access-denied", response_class=HTMLResponse)
+async def access_denied(request: Request):
+    return templates.TemplateResponse("access-denied.html", {"request": request})
