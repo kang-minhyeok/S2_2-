@@ -1,29 +1,29 @@
 <!doctype html>
-<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<html lang="ko">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>회원가입 선택</title>
-<link rel="stylesheet" href="/css/signup.css" />
+	<meta charset="UTF-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+	<title>회원가입 선택</title>
+	<link rel="stylesheet" href="/static/css/signup.css" />
 </head>
 <body>
-	<main class="auth">
+<main class="auth">
 	<a class="brand" href="/">가드허브</a>
-		<section class="auth__card">
-			<header class="auth__header">
-				<h1 class="auth__title">회원가입</h1>
-				<p class="auth__subtitle">가입 유형을 선택해 주세요.</p>
-			</header>
+	<section class="auth__card">
+		<header class="auth__header">
+			<h1 class="auth__title">회원가입</h1>
+			<p class="auth__subtitle">가입 유형을 선택해 주세요.</p>
+		</header>
 
-			<div class="choice">
-				<a class="btn btn--primary" href="/signup/user">일반 회원가입</a> <a
-					class="btn btn--ghost" href="/signup/admin">관계자용 회원가입</a>
-			</div>
+		<div class="choice">
+			<a class="btn btn--primary" href="/signup/user">일반 회원가입</a>
+			<a class="btn btn--ghost" href="/signup/admin">관계자용 회원가입</a>
+		</div>
 
-			<footer class="auth__footer">
-				<a class="auth__link" href="/login">이미 계정이 있으신가요? 로그인</a>
-			</footer>
-		</section>
-	</main>
+		<footer class="auth__footer">
+			<a class="auth__link" href="/login">이미 계정이 있으신가요? 로그인</a>
+		</footer>
+	</section>
+</main>
 </body>
 </html>
