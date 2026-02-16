@@ -428,9 +428,16 @@ async def signup_admin_page(request: Request):
     return templates.TemplateResponse("signup/admin.html", {"request": request})
 
 # 관리자 화면 연결
-@app.get("/admin")
-async def admin_page(request: Request):
-    return templates.TemplateResponse("admin.html", {"request": request})
+@app.get("/admin", response_class=HTMLResponse)
+async def admin_dashboard(request: Request, db: Session = Depends(get_db)):
+    # 1. IncidentReport 테이블에서 모든 데이터를 최신순으로 가져옴
+    reports = db.query(IncidentReport).order_by(IncidentReport.id.desc()).all()
+
+    # 2. 'reports'라는 이름으로 템플릿에 전달
+    return templates.TemplateResponse("admin.html", {
+        "request": request,
+        "reports": reports
+    })
 
 # (선택) 아까 home.html 메뉴에 있던 다른 페이지들도 미리 만들어두면 좋습니다.
 @app.get("/news")
