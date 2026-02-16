@@ -1,70 +1,67 @@
 <!doctype html>
-<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<html lang="ko">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>관계자용 자료 - GuardHub</title>
-<link rel="stylesheet" href="/css/admin.css" />
+	<meta charset="UTF-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+	<title>관계자용 자료 - GuardHub</title>
+	<link rel="stylesheet" href="/static/css/admin.css" />
 </head>
 <body>
 
-	<!-- 상단 로고/홈 이동 버튼 -->
-	<header class="top">
-		<a class="logo" href="/" aria-label="홈으로 이동">가드허브</a>
-	</header>
+<header class="top">
+	<a class="logo" href="/" aria-label="홈으로 이동">가드허브</a>
+</header>
 
-	<main class="wrap">
+<main class="wrap">
+	<h2 class="page-title">실시간 안전 신고 내역 (Safe-Link)</h2>
 
-		<h2 class="page-title">관계자용 자료</h2>
+	<section class="list">
+		<div class="table">
 
-		<!-- 목록 테이블 -->
-		<section class="list">
-			<div class="table">
-
-				<div class="row header">
-					<div class="cell col-no">번호</div>
-					<div class="cell col-title">제목</div>
-					<div class="cell col-date">등록일</div>
-					<div class="cell col-writer">작성자</div>
-				</div>
-
-				<!-- ✅ 데이터 없을 때 -->
-				<div class="row empty"
-					th:if="${docs == null || #lists.isEmpty(docs)}">
-					<div class="cell col-no">-</div>
-					<div class="cell col-title">등록된 자료가 없습니다.</div>
-					<div class="cell col-date">-</div>
-					<div class="cell col-writer">-</div>
-				</div>
-
-				<!-- ✅ 목록 데이터 -->
-				<div class="row" th:each="doc : ${docs}">
-					<div class="cell col-no" th:text="${doc.id}">1</div>
-
-					<!-- ✅ 제목 클릭 → 상세(/admin/{id}) -->
-					<div class="cell col-title">
-						<a class="title-link" th:href="@{/admin/{id}(id=${doc.id})}"
-							th:text="${doc.title}" th:aria-label="|${doc.id}번 자료 상세 보기|">
-							자료 제목 </a>
-					</div>
-
-					<div class="cell col-date" th:text="${doc.date}">2026-01-12</div>
-					<div class="cell col-writer" th:text="${doc.writer}">관리자</div>
-				</div>
-
+			<div class="row header">
+				<div class="cell col-no">번호</div>
+				<div class="cell col-title">신고 내용 (분석 결과)</div>
+				<div class="cell col-date">등록일</div>
+				<div class="cell col-writer">신고자</div>
 			</div>
-		</section>
 
-		<!-- 페이지네이션(지금은 더미) -->
-		<nav class="pager" aria-label="페이지 네비게이션">
-			<a class="btn" href="#" aria-label="처음">&lt;&lt;</a> <a class="btn"
-				href="#" aria-label="이전">&lt;</a> <a class="num on" href="#"
-				aria-label="1페이지">1</a> <a class="num" href="#" aria-label="2페이지">2</a>
-			<a class="num" href="#" aria-label="3페이지">3</a> <a class="btn"
-				href="#" aria-label="다음">&gt;</a> <a class="btn" href="#"
-				aria-label="마지막">&gt;&gt;</a>
-		</nav>
+			{% if not reports %}
+			<div class="row empty">
+				<div class="cell col-no">-</div>
+				<div class="cell col-title">등록된 신고 내역이 없습니다.</div>
+				<div class="cell col-date">-</div>
+				<div class="cell col-writer">-</div>
+			</div>
+			{% endif %}
 
-	</main>
+			{% for report in reports %}
+			<div class="row">
+				<div class="cell col-no">{{ report.id }}</div>
+
+				<div class="cell col-title">
+					<a class="title-link" href="/admin/{{ report.id }}">
+						{{ report.content if report.content else "내용 없음" }}
+					</a>
+					{% if report.video_path %} 🎥 {% endif %}
+				</div>
+
+				<div class="cell col-date">{{ report.created_at.strftime('%Y-%m-%d %H:%M') }}</div>
+
+				<div class="cell col-writer">{{ report.name }}</div>
+			</div>
+			{% endfor %}
+
+		</div>
+	</section>
+
+	<nav class="pager" aria-label="페이지 네비게이션">
+		<a class="btn" href="#">&lt;&lt;</a>
+		<a class="btn" href="#">&lt;</a>
+		<a class="num on" href="#">1</a>
+		<a class="btn" href="#">&gt;</a>
+		<a class="btn" href="#">&gt;&gt;</a>
+	</nav>
+
+</main>
 </body>
 </html>
