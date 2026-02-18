@@ -427,8 +427,8 @@ async def login_page(request: Request, error: bool = False, logout: bool = False
         "error": error,
         "logout": logout
     })
-# 1. 로그아웃으로 메인화면으로 이동 (GET)
-@app.get("/logout")
+# 1. 로그아웃으로 메인화면으로 이동 (post)
+@app.post("/logout")
 async def logout():
     response = RedirectResponse(url="/", status_code=303)
     response.delete_cookie("session_user") # 쿠키 삭제로 로그아웃 처리
