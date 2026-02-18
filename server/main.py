@@ -20,6 +20,8 @@ from fastapi.templating import Jinja2Templates
 from fastapi import Request
 from fastapi import HTTPException, Response
 from fastapi.responses import HTMLResponse
+from fastapi import Form
+from fastapi.responses import RedirectResponse
 
 # --- [1. 데이터베이스 설정 구간] ---
 DATABASE_URL = "mysql+pymysql://root:0727@localhost:3306/safety_db?charset=utf8mb4"
@@ -309,19 +311,28 @@ async def get_detection_logs(color: str = Query(None)):
 
 # 회원가입 API
 @app.post("/register")
-async def register_user(user_data: UserCreate, db: Session = Depends(get_db)):
-    # 1. 비밀번호와 주민번호 뒷자리를 암호화합니다.
-    hashed_pwd = pwd_context.hash(user_data.password)
-    hashed_resident_back = pwd_context.hash(user_data.residentBack)
+async def register_user(
+        request: Request,
+        id: str = Form(...),            # 앱의 JSON 대신 웹의 Form 데이터를 받습니다.
+        password: str = Form(...),
+        residentFront: str = Form(...),
+        residentBack: str = Form(...),
+        name: str = Form(...),
+        phone: str = Form(...),
+        db: Session = Depends(get_db)
+):
+    # 1. 기존 로직 그대로 사용 (암호화)
+    hashed_pwd = pwd_context.hash(password)
+    hashed_res_back = pwd_context.hash(residentBack)
 
-    # 2. 새로운 사용자 객체 생성
+    # 2. DB에 저장할 사용자 객체 생성
     new_user = User(
-        id=user_data.id,
+        id=id,
         password=hashed_pwd,
-        residentFront=user_data.residentFront,
-        residentBack=hashed_resident_back,
-        name=user_data.name,
-        phone=user_data.phone
+        residentFront=residentFront,
+        residentBack=hashed_res_back,
+        name=name,
+        phone=phone
     )
 
     # 3. DB에 저장 (SQLAlchemy가 INSERT 쿼리를 자동 생성)
@@ -329,7 +340,7 @@ async def register_user(user_data: UserCreate, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(new_user)
 
-    return {"status": "success", "id": new_user.id, "name": new_user.name}
+    return RedirectResponse(url="/login", status_code=303)
 
 # 신고 접수 API
 @app.post("/report/submit")
