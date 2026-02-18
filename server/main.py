@@ -427,6 +427,13 @@ async def login_page(request: Request, error: bool = False, logout: bool = False
         "error": error,
         "logout": logout
     })
+# 1. 로그아웃으로 메인화면으로 이동 (GET)
+@app.get("/logout")
+async def logout():
+    response = RedirectResponse(url="/", status_code=303)
+    response.delete_cookie("session_user") # 쿠키 삭제로 로그아웃 처리
+    return response
+
 # 1. 회원가입 유형 선택 페이지
 @app.get("/signup/select", response_class=HTMLResponse)
 async def signup_select_page(request: Request):
