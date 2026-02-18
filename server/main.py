@@ -384,13 +384,11 @@ templates = Jinja2Templates(directory="templates")
 async def read_index(request: Request):
     # 브라우저가 가져온 쿠키에서 "session_user"가 있는지 확인합니다.
     user_id = request.cookies.get("session_user")
-    # 쿠키가 있으면 로그인 상태(True), 없으면 로그아웃 상태(False)
-    is_logged_in = True if user_id else False
 
     # 템플릿 파일명과 함께 데이터를 넘겨줍니다.
     return templates.TemplateResponse("home.html", {
         "request": request,
-        "is_logged_in": is_logged_in
+        "user": user_id
     })
 
 
