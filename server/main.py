@@ -395,22 +395,28 @@ async def read_index(request: Request):
 
 # 로그인 기능(앱)
 @app.post("/login")
-async def login(user_data: UserLogin, db: Session = Depends(get_db)):
+async def login(
+        request: Request,
+        id: str = Form(...), # [수정] user_data 대신 직접 Form 데이터를 받습니다.
+        password: str = Form(...),
+        db: Session = Depends(get_db)
+):
     # 1. DB에서 해당 아이디의 사용자 찾기
-    user = db.query(User).filter(User.id == user_data.id).first()
+    user = db.query(User).filter(User.id == id).first()
 
     # 2. 사용자가 없거나 비밀번호가 틀린 경우
-    # pwd_context.verify가 암호화된 비번을 알아서 대조
-    if not user or not pwd_context.verify(user_data.password, user.password):
-        raise HTTPException(status_code=400, detail="아이디 또는 비밀번호가 틀렸습니다.")
+    if not user or not pwd_context.verify(password, user.password):
+        # 웹 환경에서는 에러 페이지로 리다이렉트하거나 에러 파라미터를 붙여 리턴하는 게 좋습니다.
+        return templates.TemplateResponse("login.html", {
+            "request": request,
+            "error": True
+        })
 
-    # 3. 로그인 성공 시 응답 (나중에 세션이나 토큰을 추가할 수 있습니다)
-    return {
-        "status": "success",
-        "message": f"{user.name}님 환영합니다!",
-        "user_no": user.user_no, # db식별자인 숫자번호넘겨줘 관리
-        "redirect_url": "/admin"
-    }
+    # 3. 로그인 성공 시 관리자 페이지로 이동 (Redirect)
+    response = RedirectResponse(url="/admin", status_code=303)
+
+    # [중요] 여기에 세션 정보를 쿠키 등으로 저장하는 로직이 추가되어야 나중에 /admin 페이지에 들어갈 수 있습니다.
+    return response
 
 
 # 1. 로그인 페이지 보여주기 (GET)
