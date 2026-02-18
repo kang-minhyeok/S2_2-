@@ -382,9 +382,10 @@ templates = Jinja2Templates(directory="templates")
 # 메인 페이지 (http://IP:8000/ 접속 시)
 @app.get("/", response_class=HTMLResponse)
 async def read_index(request: Request):
-    # 실제로는 세션이나 쿠키에서 로그인 여부를 확인해야 합니다.
-    # 테스트를 위해 임시로 False를 넣습니다.
-    is_logged_in = False
+    # 브라우저가 가져온 쿠키에서 "session_user"가 있는지 확인합니다.
+    user_id = request.cookies.get("session_user")
+    # 쿠키가 있으면 로그인 상태(True), 없으면 로그아웃 상태(False)
+    is_logged_in = True if user_id else False
 
     # 템플릿 파일명과 함께 데이터를 넘겨줍니다.
     return templates.TemplateResponse("home.html", {
@@ -413,8 +414,9 @@ async def login(
         })
 
     # 3. 로그인 성공 시 관리자 페이지로 이동 (Redirect)
-    response = RedirectResponse(url="/admin", status_code=303)
-
+    response = RedirectResponse(url="/home", status_code=303)
+    # "session_user"라는 이름으로 아이디를 브라우저에 저장합니다. (유효기간 1시간)
+    response.set_cookie(key="session_user", value=user.id, httponly=True, max_age=3600)
     # [중요] 여기에 세션 정보를 쿠키 등으로 저장하는 로직이 추가되어야 나중에 /admin 페이지에 들어갈 수 있습니다.
     return response
 
