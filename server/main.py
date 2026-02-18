@@ -414,7 +414,7 @@ async def login(
         })
 
     # 3. 로그인 성공 시 관리자 페이지로 이동 (Redirect)
-    response = RedirectResponse(url="/home", status_code=303)
+    response = RedirectResponse(url="/", status_code=303)
     # "session_user"라는 이름으로 아이디를 브라우저에 저장합니다. (유효기간 1시간)
     response.set_cookie(key="session_user", value=user.id, httponly=True, max_age=3600)
     # [중요] 여기에 세션 정보를 쿠키 등으로 저장하는 로직이 추가되어야 나중에 /admin 페이지에 들어갈 수 있습니다.
