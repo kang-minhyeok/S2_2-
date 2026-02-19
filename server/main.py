@@ -458,14 +458,17 @@ templates = Jinja2Templates(directory="templates")
 
 # 메인 페이지 (http://IP:8000/ 접속 시)
 @app.get("/", response_class=HTMLResponse)
-async def read_index(request: Request):
+async def read_index(request: Request, db: Session = Depends(get_db)):
     # 브라우저가 가져온 쿠키에서 "session_user"가 있는지 확인합니다.
     user_id = request.cookies.get("session_user")
-
+    user_info = None
+    if user_id:
+        # 2. ID가 있다면 DB에서 사용자 전체 정보를 조회 (이름, 소속, 권한 등)
+        user_info = db.query(User).filter(User.id == user_id).first()
     # 템플릿 파일명과 함께 데이터를 넘겨줍니다.
     return templates.TemplateResponse("home.html", {
         "request": request,
-        "user": user_id
+        "user": user_info
     })
 
 
