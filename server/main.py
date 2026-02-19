@@ -49,7 +49,7 @@ class AdminSignupRequest(BaseModel):
     phone: str
     residentFront: str
     residentBack: str
-    affiliation_code: str
+    orgCode: str
 
 # 앱에서 서버로 신고 정보를 보낼 때의 형식
 class ReportCreate(BaseModel):
@@ -410,13 +410,13 @@ def signup_admin(request: Request,
                  phone: str = Form(...),
                  residentFront: str = Form(...),
                  residentBack: str = Form(...),
-                 affiliation_code: str = Form(...), # [핵심] 관리자용 추가 필드
+                 orgCode: str = Form(...), # [핵심] 관리자용 추가 필드
                  db: Session = Depends(get_db)
 ):
 
     # 1. 소속 코드 검증
     # 입력한 코드가 DB에 있는지 확인하고, 없으면 에러 발생
-    affiliation_data = db.query(Affiliation).filter(Affiliation.code == request.affiliation_code).first()
+    affiliation_data = db.query(Affiliation).filter(Affiliation.code == request.orgCode).first()
 
     if not affiliation_data:
         return HTMLResponse(content="<script>alert('유효하지 않은 소속 코드입니다.'); history.back();</script>", status_code=400)
