@@ -535,13 +535,29 @@ async def signup_admin_page(request: Request):
 # 관리자 화면 연결
 @app.get("/admin", response_class=HTMLResponse)
 async def admin_dashboard(request: Request, db: Session = Depends(get_db)):
-    # 1. IncidentReport 테이블에서 모든 데이터를 최신순으로 가져옴
+
+    # 1. 로그인 여부 확인
+    user_id = request.cookies.get("session_user")
+    if not user_id:
+        # 로그인이 안 되어 있다면 로그인 페이지로 튕김
+        return RedirectResponse(url="/login", status_code=303)
+
+    # 2. 사용자 정보 및 권한 조회
+    user = db.query(User).filter(User.id == user_id).first()
+
+    # 3. 관리자(ADMIN) 권한 체크
+    # 유저가 없거나, 역할이 ADMIN이 아니라면 '접근 거부' 페이지 리턴
+    if not user or user.role != "ADMIN":
+        return templates.TemplateResponse("access-denied.html", {"request": request})
+
+    # 4. 권한 통과 시: IncidentReport 테이블에서 모든 데이터를 최신순으로 가져옴
     reports = db.query(IncidentReport).order_by(IncidentReport.id.desc()).all()
 
-    # 2. 'reports'라는 이름으로 템플릿에 전달
+    # 5. admin_dashboard.html로 렌더링
     return templates.TemplateResponse("admin_dashboard.html", {
         "request": request,
-        "reports": reports
+        "reports": reports,
+        "user": user # 상단에 이름 표시용
     })
 
 # (선택) 아까 home.html 메뉴에 있던 다른 페이지들도 미리 만들어두면 좋습니다.
