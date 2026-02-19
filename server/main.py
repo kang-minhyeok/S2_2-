@@ -530,7 +530,7 @@ async def signup_user_page(request: Request):
 @app.get("/signup/admin", response_class=HTMLResponse)
 async def signup_admin_page(request: Request):
     # 실제 관계자 가입 양식이 담긴 html 파일명을 입력하세요 (예: signup_admin.html)
-    return templates.TemplateResponse("signup/admin.html", {"request": request})
+    return templates.TemplateResponse("signup/admin_dashboard.html", {"request": request})
 
 # 관리자 화면 연결
 @app.get("/admin", response_class=HTMLResponse)
@@ -539,7 +539,7 @@ async def admin_dashboard(request: Request, db: Session = Depends(get_db)):
     reports = db.query(IncidentReport).order_by(IncidentReport.id.desc()).all()
 
     # 2. 'reports'라는 이름으로 템플릿에 전달
-    return templates.TemplateResponse("admin.html", {
+    return templates.TemplateResponse("admin_dashboard.html", {
         "request": request,
         "reports": reports
     })
