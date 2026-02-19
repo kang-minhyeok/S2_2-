@@ -368,7 +368,7 @@ async def register_user(
     db.commit()
     db.refresh(new_user)
 
-    return RedirectResponse(url="/login", status_code=303)
+    return RedirectResponse(url="/", status_code=303)
 
 # 신고 접수 API
 @app.post("/report/submit")
@@ -447,7 +447,7 @@ def signup_admin(request: Request,
     db.commit()
     db.refresh(new_user)
 
-    return {"message": "관리자 회원가입이 완료되었습니다."}
+    return RedirectResponse(url="/", status_code=303)
 
 
 # 1. 정적 파일(CSS/JS) 연결
