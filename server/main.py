@@ -416,28 +416,28 @@ def signup_admin(request: Request,
 
     # 1. 소속 코드 검증
     # 입력한 코드가 DB에 있는지 확인하고, 없으면 에러 발생
-    affiliation_data = db.query(Affiliation).filter(Affiliation.code == request.orgCode).first()
+    affiliation_data = db.query(Affiliation).filter(Affiliation.code == orgCode).first()
 
     if not affiliation_data:
         return HTMLResponse(content="<script>alert('유효하지 않은 소속 코드입니다.'); history.back();</script>", status_code=400)
 
     # 2. 아이디 중복 확인
-    existing_user = db.query(User).filter(User.id == request.id).first()
+    existing_user = db.query(User).filter(User.id == id).first()
     if existing_user:
         return HTMLResponse(content="<script>alert('이미 사용 중인 아이디입니다.'); history.back();</script>", status_code=400)
 
     # 3. 비밀번호 해싱
-    hashed_password = pwd_context.hash(request.password)
-    hashed_res_back = pwd_context.hash(request.residentBack)
+    hashed_password = pwd_context.hash(password)
+    hashed_res_back = pwd_context.hash(residentBack)
 
     # 4. DB 저장
     # role은 "ADMIN", affiliation은 코드에 해당하는 이름(ex: oo경찰서)으로 자동 저장
     new_user = User(
-        id=request.id,
+        id=id,
         password=hashed_password,      # 암호화된 비밀번호 저장
-        name=request.name,
-        phone=request.phone,
-        residentFront=request.residentFront,
+        name=name,
+        phone=phone,
+        residentFront=residentFront,
         residentBack=hashed_res_back,
         role="ADMIN",                  # 관리자 권한 부여
         affiliation=affiliation_data.name # 소속명 입력
