@@ -134,3 +134,15 @@ body {
 .link:hover {
 	text-decoration: underline;
 }
+
+button.btn {
+    font-family: inherit;
+    font-size: 1rem;
+    cursor: pointer;
+}
+
+
+.actions form {
+    display: flex;
+    margin: 0;
+}
