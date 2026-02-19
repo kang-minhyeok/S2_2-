@@ -16,9 +16,12 @@
 		<p class="desc">
 			관계자용 자료는 <b>관계자 계정(관리자)</b>으로 로그인한 경우에만 확인할 수 있습니다.
 		</p>
-		<div class="actions">
+		<div class="actions" style="display: flex; gap: 10px; justify-content: center;">
 			<a class="btn btn-primary" href="/">홈으로 돌아가기</a>
-			<a class="btn btn-ghost" href="/logout">로그아웃하기</a>
+
+			<form action="/logout" method="post" style="margin: 0;">
+				<button type="submit" class="btn btn-ghost">로그아웃하기</button>
+			</form>
 		</div>
 		<p class="hint">
 			관계자 계정이 필요하신가요? <a class="link" href="/signup/admin">관계자용 회원가입</a>
