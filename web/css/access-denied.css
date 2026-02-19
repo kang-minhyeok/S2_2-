@@ -135,21 +135,3 @@ body {
 	text-decoration: underline;
 }
 
-.actions form {
-    display: contents;
-}
-
-button.btn {
-    font: inherit;
-    cursor: pointer;
-    background-color: #fff;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    height: 47px;
-    box-sizing: border-box;
-}
-
-button.btn-ghost:hover {
-    background: #f9fafb;
-}
