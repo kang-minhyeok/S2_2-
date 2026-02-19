@@ -29,18 +29,10 @@ engine = create_engine(DATABASE_URL)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
-class DetectionResult(Base):
-    __tablename__ = "detection_results"
-    id = Column(Integer, primary_key=True, index=True)
-    object_id = Column(Integer)
-    detected_color = Column(String(20))
-    video_name = Column(String(100))
-    detected_at = Column(DateTime, default=datetime.datetime.now)
-
-
 # 비밀번호 암호화 설정
 pwd_context = CryptContext(schemes=["pbkdf2_sha256"], deprecated="auto")
-# 회원가입 시 받을 데이터 규격 (추후 수정)
+
+# 회원가입 시 받을 데이터 규격 (일반user)
 class UserCreate(BaseModel):
     id: str
     password: str
@@ -48,6 +40,16 @@ class UserCreate(BaseModel):
     residentBack: str
     name: str
     phone: str
+
+# 관리자 회원가입 시 데이터 규격 (admin)
+class AdminSignupRequest(BaseModel):
+    id: str
+    password: str
+    name: str
+    phone: str
+    residentFront: str
+    residentBack: str
+    affiliation_code: str
 
 # 앱에서 서버로 신고 정보를 보낼 때의 형식
 class ReportCreate(BaseModel):
@@ -65,7 +67,18 @@ class UserLogin(BaseModel):
 def get_password_hash(password):
     return pwd_context.hash(password)
 
-# 기존 Base를 상속받아 users 테이블 정의
+
+# 영상 감지 내역
+class DetectionResult(Base):
+    __tablename__ = "detection_results"
+    id = Column(Integer, primary_key=True, index=True)
+    object_id = Column(Integer)
+    detected_color = Column(String(20))
+    video_name = Column(String(100))
+    detected_at = Column(DateTime, default=datetime.datetime.now)
+
+
+# users 테이블 정의
 class User(Base):
     __tablename__ = "users"
 
@@ -76,9 +89,19 @@ class User(Base):
     residentBack = Column(String(255), nullable=False)          # 암호화된 주민번호 뒷자리
     name = Column(String(50), nullable=False)               # 사용자 이름
     phone = Column(String(20), nullable=False)       # 휴대폰 번호
+    role = Column(String(20), default="USER")     # 역할 "USER"(일반), "ADMIN"(관계자)
+    affiliation = Column(String(100), nullable=True) # 관계자일 경우 소속명 저장
     created_at = Column(DateTime, default=datetime.datetime.now) # 가입일
 
-# 신고 내역 저장을 위한 테이블 모델
+# [추가] 소속 코드 관리 테이블
+class Affiliation(Base):
+    __tablename__ = "affiliations"
+
+    id = Column(Integer, primary_key=True, index=True)
+    code = Column(String(50), unique=True, nullable=False)  # 인증 코드
+    name = Column(String(100), nullable=False)              # 소속명 (예: xx경찰서, oo소방서)
+
+# 신고 내역 테이블
 class IncidentReport(Base):
     __tablename__ = "incident_reports"
 
@@ -321,6 +344,11 @@ async def register_user(
         phone: str = Form(...),
         db: Session = Depends(get_db)
 ):
+    # 2. 아이디 중복 확인 (기존 로직 동일)
+    existing_user = db.query(User).filter(User.id == request.id).first()
+    if existing_user:
+        return HTMLResponse(content="<script>alert('이미 사용 중인 아이디입니다.'); history.back();</script>", status_code=400)
+
     # 1. 기존 로직 그대로 사용 (암호화)
     hashed_pwd = pwd_context.hash(password)
     hashed_res_back = pwd_context.hash(residentBack)
@@ -372,6 +400,55 @@ async def submit_report(
         "message": "신고 접수가 완료되었습니다. 비디오 분석이 백그라운드에서 시작됩니다.",
         "report_id": new_report.id
     }
+
+# 관리자(admin) 회원가입 API
+@app.post("/signup/admin")
+def signup_admin(request: Request,
+                 id: str = Form(...),
+                 password: str = Form(...),
+                 name: str = Form(...),
+                 phone: str = Form(...),
+                 residentFront: str = Form(...),
+                 residentBack: str = Form(...),
+                 affiliation_code: str = Form(...), # [핵심] 관리자용 추가 필드
+                 db: Session = Depends(get_db)
+):
+
+    # 1. 소속 코드 검증
+    # 입력한 코드가 DB에 있는지 확인하고, 없으면 에러 발생
+    affiliation_data = db.query(Affiliation).filter(Affiliation.code == request.affiliation_code).first()
+
+    if not affiliation_data:
+        return HTMLResponse(content="<script>alert('유효하지 않은 소속 코드입니다.'); history.back();</script>", status_code=400)
+
+    # 2. 아이디 중복 확인
+    existing_user = db.query(User).filter(User.id == request.id).first()
+    if existing_user:
+        return HTMLResponse(content="<script>alert('이미 사용 중인 아이디입니다.'); history.back();</script>", status_code=400)
+
+    # 3. 비밀번호 해싱
+    hashed_password = pwd_context.hash(request.password)
+    hashed_res_back = pwd_context.hash(request.residentBack)
+
+    # 4. DB 저장
+    # role은 "ADMIN", affiliation은 코드에 해당하는 이름(ex: oo경찰서)으로 자동 저장
+    new_user = User(
+        id=request.id,
+        password=hashed_password,      # 암호화된 비밀번호 저장
+        name=request.name,
+        phone=request.phone,
+        residentFront=request.residentFront,
+        residentBack=hashed_res_back,
+        role="ADMIN",                  # 관리자 권한 부여
+        affiliation=affiliation_data.name # 소속명 입력
+    )
+
+    db.add(new_user)
+    db.commit()
+    db.refresh(new_user)
+
+    return {"message": "관리자 회원가입이 완료되었습니다."}
+
 
 # 1. 정적 파일(CSS/JS) 연결
 app.mount("/static", StaticFiles(directory="static"), name="static")
@@ -427,6 +504,7 @@ async def login_page(request: Request, error: bool = False, logout: bool = False
         "error": error,
         "logout": logout
     })
+
 # 1. 로그아웃으로 메인화면으로 이동 (post)
 @app.post("/logout")
 async def logout():
