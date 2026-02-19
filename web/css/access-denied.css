@@ -136,19 +136,20 @@ body {
 }
 
 .actions form {
-    display: flex;
-    margin: 0;
+    display: contents;
 }
 
-
 button.btn {
-    font-family: inherit;
-    font-size: 14px;
+    font: inherit;
     cursor: pointer;
-    height: 47px;
-    width: 100%;
-    display: flex;
+    background-color: #fff;
+    display: inline-flex;
     align-items: center;
     justify-content: center;
-    line-height: normal;
+    height: 47px;
+    box-sizing: border-box;
+}
+
+button.btn-ghost:hover {
+    background: #f9fafb;
 }
