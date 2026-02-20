@@ -560,6 +560,17 @@ async def admin_dashboard(request: Request, db: Session = Depends(get_db)):
 async def access_denied(request: Request):
     return templates.TemplateResponse("access-denied.html", {"request": request})
 
+# CCTV 모니터링 페이지
+@app.get("/admin/cctv", response_class=HTMLResponse)
+async def admin_cctv_page(request: Request, db: Session = Depends(get_db)):
+    # 권한 체크 (admin만 가능)
+    user_id = request.cookies.get("session_user")
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user or user.role != "ADMIN":
+        return templates.TemplateResponse("access-denied.html", {"request": request})
+
+    return templates.TemplateResponse("admin_cctv.html", {"request": request, "user": user})
+
 # 신고 내역 상세 보기
 @app.get("/admin/{report_id}", response_class=HTMLResponse)
 async def admin_report_detail(report_id: int, request: Request, db: Session = Depends(get_db)):
@@ -581,16 +592,7 @@ async def admin_report_detail(report_id: int, request: Request, db: Session = De
         "user": user
     })
 
-# CCTV 모니터링 페이지
-@app.get("/admin/cctv", response_class=HTMLResponse)
-async def admin_cctv_page(request: Request, db: Session = Depends(get_db)):
-    # 권한 체크 (admin만 가능)
-    user_id = request.cookies.get("session_user")
-    user = db.query(User).filter(User.id == user_id).first()
-    if not user or user.role != "ADMIN":
-        return templates.TemplateResponse("access-denied.html", {"request": request})
 
-    return templates.TemplateResponse("admin_cctv.html", {"request": request, "user": user})
 
 # 분석된 영상 파일을 브라우저에서 볼 수 있게 해주는 경로
 @app.get("/video/{video_name}")
