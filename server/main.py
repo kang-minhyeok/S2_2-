@@ -633,5 +633,5 @@ async def get_video(video_name: str):
     file_path = os.path.join(os.getcwd(), video_name)
     if not os.path.exists(file_path):
         raise HTTPException(status_code=404)
-    # media_type을 지정해야 브라우저 플레이어가 정상 작동합니다.
+
     return FileResponse(file_path, media_type="video/mp4")
