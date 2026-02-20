@@ -204,7 +204,7 @@ def process_video_analysis(report_id: int, content: str = None):
         cap = cv2.VideoCapture(in_path)
         fps = int(cap.get(cv2.CAP_PROP_FPS))
         w, h = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH)), int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-        out = cv2.VideoWriter(out_path, cv2.VideoWriter_fourcc(*'mp4v'), fps, (w, h))
+        out = cv2.VideoWriter(out_path, cv2.VideoWriter_fourcc(*'avc1'), fps, (w, h))
 
         frame_count = 0
         while cap.isOpened():
@@ -607,9 +607,5 @@ async def admin_report_detail(report_id: int, request: Request, db: Session = De
 # 분석된 영상 파일을 브라우저에서 볼 수 있게 해주는 경로
 @app.get("/video/{video_name}")
 async def get_video(video_name: str):
-    file_path = os.path.join(os.getcwd(), video_name)
-
-    if not os.path.exists(file_path):
-        raise HTTPException(status_code=404, detail="영상을 찾을 수 없습니다.")
-
-    return FileResponse(file_path, media_type="video/mp4")
+    # 영상 파일 위치는 main.py와 같은 위치에 저장됨. FileResponse로 바로 전송.
+    return FileResponse(video_name)
