@@ -18,7 +18,7 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy.orm import Session
 from passlib.context import CryptContext
 from pydantic import BaseModel
-
+import subprocess
 
 # --- [데이터베이스 설정 구간] ---
 DATABASE_URL = "mysql+pymysql://root:0727@localhost:3306/safety_db?charset=utf8mb4"
@@ -278,7 +278,30 @@ def process_video_analysis(report_id: int, content: str = None):
     finally:
         if out: out.release()
         if cap: cap.release()
-        db.close()
+
+        # [핵심] OpenCV가 만든 영상을 브라우저용(H.264)으로 강제 변환
+        # 기존 out_xxx.mp4를 input으로 받아 web_out_xxx.mp4를 만듭니다.
+        web_out_path = f"web_{out_path}"
+        try:
+            subprocess.run([
+                'ffmpeg', '-i', out_path,
+                '-vcodec', 'libx264',
+                '-acodec', 'aac',
+                '-movflags', 'faststart', # 웹에서 스트리밍이 잘 되게 설정
+                '-y', web_out_path
+            ], check=True)
+
+            # 변환 성공 시, DB에는 웹용 경로를 저장
+            final_path = web_out_path
+        except Exception as e:
+            print(f"❌ FFmpeg 변환 실패: {e}")
+            final_path = out_path # 실패 시 기존 파일 유지
+
+        # DB 업데이트 부분에서 final_path 사용
+        report = db.query(IncidentReport).filter(IncidentReport.id == report_id).first()
+        if report:
+            report.video_path = final_path
+            db.commit()
 
 
 # DB 세션을 가져오는 헬퍼 함수
