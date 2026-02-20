@@ -561,15 +561,25 @@ async def access_denied(request: Request):
     return templates.TemplateResponse("access-denied.html", {"request": request})
 
 # CCTV 모니터링 페이지
-@app.get("/admin/cctv", response_class=HTMLResponse)
-async def admin_cctv_page(request: Request, db: Session = Depends(get_db)):
-    # 권한 체크 (admin만 가능)
+@app.get("/admin/cctv/{report_id}", response_class=HTMLResponse)
+async def admin_cctv_page(report_id: int, request: Request, db: Session = Depends(get_db)):
+
+    # 관리자 권한 체크
     user_id = request.cookies.get("session_user")
     user = db.query(User).filter(User.id == user_id).first()
     if not user or user.role != "ADMIN":
         return templates.TemplateResponse("access-denied.html", {"request": request})
 
-    return templates.TemplateResponse("admin_cctv.html", {"request": request, "user": user})
+    # DB에서 신고 내역 조회
+    report = db.query(IncidentReport).filter(IncidentReport.id == report_id).first()
+    if not report:
+        raise HTTPException(status_code=404, detail="영상을 찾을 수 없는 신고 내역입니다.")
+
+    return templates.TemplateResponse("admin_cctv.html", {
+        "request": request,
+        "report": report, # HTML로 신고 정보 전달
+        "user": user
+    })
 
 # 신고 내역 상세 보기
 @app.get("/admin/{report_id}", response_class=HTMLResponse)
