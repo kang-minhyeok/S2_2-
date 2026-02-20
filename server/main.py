@@ -561,7 +561,7 @@ async def access_denied(request: Request):
     return templates.TemplateResponse("access-denied.html", {"request": request})
 
 # 신고 내역 상세 보기
-@app.get("/admin/report/{report_id}", response_class=HTMLResponse)
+@app.get("/admin/{report_id}", response_class=HTMLResponse)
 async def admin_report_detail(report_id: int, request: Request, db: Session = Depends(get_db)):
     # 권한 체크 (admin만 가능)
     user_id = request.cookies.get("session_user")
