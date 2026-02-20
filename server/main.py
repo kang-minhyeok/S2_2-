@@ -19,7 +19,7 @@ from sqlalchemy.orm import Session
 from passlib.context import CryptContext
 from pydantic import BaseModel
 import subprocess
-
+os.environ["OPENCV_VIDEOIO_DEBUG"] = "1" # 제일 윗줄에 넣으세요
 # --- [데이터베이스 설정 구간] ---
 DATABASE_URL = "mysql+pymysql://root:0727@localhost:3306/safety_db?charset=utf8mb4"
 engine = create_engine(DATABASE_URL)
