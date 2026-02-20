@@ -3,27 +3,24 @@ import os
 import numpy as np
 import time
 import torch
+import datetime
 from collections import deque, Counter
-from fastapi import FastAPI, File, UploadFile, Query, BackgroundTasks
+from fastapi import FastAPI, File, UploadFile, Query, BackgroundTasks, Depends, Request, Form,HTTPException, Response
 from fastapi.responses import FileResponse
+from fastapi.responses import RedirectResponse
+from fastapi.responses import HTMLResponse
+from fastapi.staticfiles import StaticFiles
+from fastapi.templating import Jinja2Templates
 from ultralytics import YOLO
 from sqlalchemy import create_engine, Column, Integer, String, DateTime
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
-import datetime
+from sqlalchemy.orm import Session
 from passlib.context import CryptContext
 from pydantic import BaseModel
-from fastapi import Depends
-from sqlalchemy.orm import Session
-from fastapi.staticfiles import StaticFiles
-from fastapi.templating import Jinja2Templates
-from fastapi import Request
-from fastapi import HTTPException, Response
-from fastapi.responses import HTMLResponse
-from fastapi import Form
-from fastapi.responses import RedirectResponse
 
-# --- [1. 데이터베이스 설정 구간] ---
+
+# --- [데이터베이스 설정 구간] ---
 DATABASE_URL = "mysql+pymysql://root:0727@localhost:3306/safety_db?charset=utf8mb4"
 engine = create_engine(DATABASE_URL)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
@@ -67,15 +64,15 @@ class UserLogin(BaseModel):
 def get_password_hash(password):
     return pwd_context.hash(password)
 
-
 # 영상 감지 내역
 class DetectionResult(Base):
     __tablename__ = "detection_results"
-    id = Column(Integer, primary_key=True, index=True)
-    object_id = Column(Integer)
-    detected_color = Column(String(20))
-    video_name = Column(String(100))
-    detected_at = Column(DateTime, default=datetime.datetime.now)
+
+    id = Column(Integer, primary_key=True, index=True) # DB 관리용 번호
+    object_id = Column(Integer) # 감지된 객체 id
+    detected_color = Column(String(20)) # 감지된 color
+    video_name = Column(String(100)) # video 이름
+    detected_at = Column(DateTime, default=datetime.datetime.now) # 분석된 시간
 
 
 # users 테이블 정의
@@ -93,11 +90,11 @@ class User(Base):
     affiliation = Column(String(100), nullable=True) # 관계자일 경우 소속명 저장
     created_at = Column(DateTime, default=datetime.datetime.now) # 가입일
 
-# [추가] 소속 코드 관리 테이블
+# 소속 코드 관리 테이블
 class Affiliation(Base):
     __tablename__ = "affiliations"
 
-    id = Column(Integer, primary_key=True, index=True)
+    id = Column(Integer, primary_key=True, index=True) # DB 관리용 번호
     code = Column(String(50), unique=True, nullable=False)  # 인증 코드
     name = Column(String(100), nullable=False)              # 소속명 (예: xx경찰서, oo소방서)
 
@@ -523,14 +520,12 @@ async def signup_select_page(request: Request):
 # 2. 일반 회원가입 양식 페이지
 @app.get("/signup/user", response_class=HTMLResponse)
 async def signup_user_page(request: Request):
-    # 실제 가입 양식이 담긴 html 파일명을 입력하세요 (예: signup_user.html)
     return templates.TemplateResponse("signup/user.html", {"request": request})
 
 # 3. 관계자용 회원가입 양식 페이지
 @app.get("/signup/admin", response_class=HTMLResponse)
 async def signup_admin_page(request: Request):
-    # 실제 관계자 가입 양식이 담긴 html 파일명을 입력하세요 (예: signup_admin.html)
-    return templates.TemplateResponse("signup/admin_dashboard.html", {"request": request})
+    return templates.TemplateResponse("signup/admin.html", {"request": request})
 
 # 관리자 화면 연결
 @app.get("/admin", response_class=HTMLResponse)
@@ -560,12 +555,8 @@ async def admin_dashboard(request: Request, db: Session = Depends(get_db)):
         "user": user # 상단에 이름 표시용
     })
 
-# (선택) 아까 home.html 메뉴에 있던 다른 페이지들도 미리 만들어두면 좋습니다.
-@app.get("/news")
-async def news_page(request: Request):
-    return templates.TemplateResponse("news.html", {"request": request})
-
-
+# 관리자 화면 접근 거부 (일반 user 또는 로그인을 안한상태)
 @app.get("/access-denied", response_class=HTMLResponse)
 async def access_denied(request: Request):
     return templates.TemplateResponse("access-denied.html", {"request": request})
+
