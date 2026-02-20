@@ -204,7 +204,7 @@ def process_video_analysis(report_id: int, content: str = None):
         cap = cv2.VideoCapture(in_path)
         fps = int(cap.get(cv2.CAP_PROP_FPS))
         w, h = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH)), int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-        out = cv2.VideoWriter(out_path, cv2.VideoWriter_fourcc(*'avc1'), fps, (w, h))
+        out = cv2.VideoWriter(out_path, cv2.VideoWriter_fourcc(*'X264'), fps, (w, h))
 
         frame_count = 0
         while cap.isOpened():
