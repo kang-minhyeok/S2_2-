@@ -34,11 +34,17 @@
 				</div>
 
 				<div class="video-box">
+					{% if report and report.video_path %}
+					<video class="player" controls autoplay>
+						<source src="/video/{{ report.video_path }}" type="video/mp4" />
+					</video>
+					{% else %}
 					<div class="placeholder">
 						<div class="ph-icon">🎥</div>
 						<div class="ph-title">등록된 CCTV 영상이 없습니다</div>
-						<div class="ph-desc">DB 연결 후 영상이 추가되면 여기에 표시됩니다.</div>
 					</div>
+					{% endif %}
+				</div>
 
 					<!-- 🔹 나중에 DB 연결되면 이 video만 활성화
         <video class="player" controls th:if="${videoUrl != null}">
