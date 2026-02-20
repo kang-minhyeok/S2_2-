@@ -204,8 +204,13 @@ def process_video_analysis(report_id: int, content: str = None):
         cap = cv2.VideoCapture(in_path)
         fps = int(cap.get(cv2.CAP_PROP_FPS))
         w, h = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH)), int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-        out = cv2.VideoWriter(out_path, cv2.VideoWriter_fourcc(*'X264'), fps, (w, h))
-
+        fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+        out = cv2.VideoWriter(out_path, fourcc, fps, (w, h))
+        if not out.isOpened():
+            print(f"❌ [비상] 비디오 파일을 열 수 없습니다! 경로: {out_path}")
+            print(f"현재 작업 디렉토리: {os.getcwd()}")
+        else:
+            print(f"✅ 비디오 파일 생성 시작: {out_path}")
         frame_count = 0
         while cap.isOpened():
             success, frame = cap.read()
