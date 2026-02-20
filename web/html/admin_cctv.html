@@ -1,59 +1,54 @@
 <!doctype html>
-<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<html lang="ko">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title th:text="|CCTV 자료 - ${doc.title}|">CCTV 자료</title>
-<link rel="stylesheet" href="/static/css/admin_cctv.css" />
+	<meta charset="UTF-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+	<title>CCTV 자료 - No.{{ report.id }}</title>
+	<link rel="stylesheet" href="/static/css/admin_cctv.css" />
 </head>
 <body>
 
-	<header class="top">
-		<a class="logo" href="/">가드허브</a>
-	</header>
+<header class="top">
+	<a class="logo" href="/">가드허브</a>
+</header>
 
-	<main class="wrap">
-		<div class="head">
-			<div>
-				<h2 class="page-title">CCTV 자료</h2>
-				<div class="meta" th:text="|문서: ${doc.title}|">문서: 자료 제목</div>
-			</div>
-
-			<div class="actions">
-				<a class="btn" th:href="@{|/admin/${doc.id}|}">상세로</a> <a
-					class="btn" href="/admin">목록으로</a>
-			</div>
+<main class="wrap">
+	<div class="head">
+		<div>
+			<h2 class="page-title">CCTV 자료</h2>
+			<div class="meta">신고 번호: {{ report.id }} | 작성자: {{ report.name }}</div>
 		</div>
 
-		<section class="single-video">
+		<div class="actions">
+			<a class="btn" href="/admin/{{ report.id }}">상세로</a>
+			<a class="btn" href="/admin">목록으로</a>
+		</div>
+	</div>
 
-			<div class="panel">
-				<div class="panel-head">
-					<div class="panel-title">CCTV 영상</div>
-					<div class="panel-sub">DB 연결 후 영상이 등록되면 자동으로 재생됩니다</div>
-				</div>
-
-				<div class="video-box">
-					{% if report and report.video_path %}
-					<video class="player" controls autoplay>
-						<source src="/video/{{ report.video_path }}" type="video/mp4" />
-					</video>
-					{% else %}
-					<div class="placeholder">
-						<div class="ph-icon">🎥</div>
-						<div class="ph-title">등록된 CCTV 영상이 없습니다</div>
-					</div>
-					{% endif %}
-				</div>
-
-					<!-- 🔹 나중에 DB 연결되면 이 video만 활성화
-        <video class="player" controls th:if="${videoUrl != null}">
-          <source th:src="${videoUrl}" type="video/mp4" />
-        </video>
-        -->
-				</div>
+	<section class="single-video">
+		<div class="panel">
+			<div class="panel-head">
+				<div class="panel-title">분석된 CCTV 영상</div>
+				<div class="panel-sub">AI가 분석하여 저장한 영상을 재생합니다.</div>
 			</div>
-		</section>
-	</main>
+
+			<div class="video-box">
+				{% if report.video_path %}
+				<video class="player" controls autoplay style="width: 100%; border-radius: 8px;">
+					<source src="/video/{{ report.video_path }}" type="video/mp4" />
+					브라우저가 비디오 재생을 지원하지 않습니다.
+				</video>
+				{% else %}
+				<div class="placeholder">
+					<div class="ph-icon">🎥</div>
+					<div class="ph-title">등록된 CCTV 영상이 없습니다</div>
+					<div class="ph-desc">영상 분석이 완료되지 않았거나 파일이 존재하지 않습니다.</div>
+				</div>
+				{% endif %}
+			</div>
+		</div>
+	</section>
+</main>
+
 </body>
 </html>
