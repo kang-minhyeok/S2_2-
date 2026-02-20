@@ -13,36 +13,26 @@
 	</header>
 
 	<main class="wrap">
-		<h2 class="page-title">관계자용 자료</h2>
-
 		<section class="detail">
+			<h2 class="title">관계자용 자료</h2>
 			<div class="table">
-
-				<div class="row">
-					<div class="cell label">제목</div>
-					<div class="cell value" th:text="${doc.title}">제목</div>
-				</div>
-
 				<div class="row">
 					<div class="cell label">등록일</div>
-					<div class="cell value" th:text="${doc.date}">2026-01-12</div>
+					<div class="cell value">{{ report.created_at.strftime('%Y-%m-%d') if report.created_at else '' }}</div>
 				</div>
-
 				<div class="row">
 					<div class="cell label">작성자</div>
-					<div class="cell value" th:text="${doc.writer}">관리자</div>
+					<div class="cell value">{{ report.name }}</div>
 				</div>
-
 				<div class="row big">
 					<div class="cell label">내용</div>
-					<div class="cell value" th:text="${doc.content}">상세 내용</div>
+					<div class="cell value">{{ report.content }}</div>
 				</div>
-
 			</div>
 
 			<div class="actions">
 				<a class="btn" href="/admin">목록으로</a>
-				<a class="btn" th:href="@{|/admin/${doc.id}/cctv|}">CCTV 자료</a>
+				<a class="btn" href="/admin/cctv">CCTV 자료</a>
 			</div>
 		</section>
 	</main>
