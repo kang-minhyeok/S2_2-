@@ -375,7 +375,7 @@ async def register_user(
         db: Session = Depends(get_db)
 ):
     # 2. 아이디 중복 확인 (기존 로직 동일)
-    existing_user = db.query(User).filter(User.id == request.id).first()
+    existing_user = db.query(User).filter(User.id == id).first()
     if existing_user:
         return HTMLResponse(content="<script>alert('이미 사용 중인 아이디입니다.'); history.back();</script>", status_code=400)
 
