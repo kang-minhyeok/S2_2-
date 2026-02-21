@@ -19,7 +19,7 @@ from sqlalchemy.orm import Session
 from passlib.context import CryptContext
 from pydantic import BaseModel
 import subprocess
-os.environ["OPENCV_VIDEOIO_DEBUG"] = "1" # 제일 윗줄에 넣으세요
+
 # --- [데이터베이스 설정 구간] ---
 DATABASE_URL = "mysql+pymysql://root:0727@localhost:3306/safety_db?charset=utf8mb4"
 engine = create_engine(DATABASE_URL)
@@ -134,6 +134,11 @@ latest_track_data = {}
 
 """
 표준 Hue 범위 기반 색상 판별 로직
+1. 분석할 영역(ROI)를 받음-> 
+2. 24x24로 리사이징-> 
+3. K-mean(k=2)적용-> 
+4. 가장 큰 군집 BGR을 계산-> 
+5. HSV로 변환 후 색상판단
 """
 def detect_color_name(roi):
 
@@ -142,10 +147,12 @@ def detect_color_name(roi):
     small_roi = cv2.resize(roi, (24, 24), interpolation=cv2.INTER_AREA)
     data = small_roi.reshape((-1, 3)).astype(np.float32)
 
-    # K-Means (K=2)
+    # K-Means (K=2)적용
     criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 10, 1.0)
     _, labels, centers = cv2.kmeans(data, 2, None, criteria, 5, cv2.KMEANS_RANDOM_CENTERS)
+    # BGR 추출
     dom_bgr = centers[np.argmax(np.bincount(labels.flatten()))]
+    # HSV로 변환
     h, s, v = cv2.cvtColor(np.uint8([[dom_bgr]]), cv2.COLOR_BGR2HSV)[0][0]
 
     # 표준 HSV 색상 정의
@@ -164,7 +171,7 @@ def detect_color_name(roi):
 
 """
 시계열 분석
-10프레임을 비교해 객체의 색상 판별해 오차를 줄임
+10프레임간을 분석을 통해 객체의 색상 판별하여 순간적으로 발생하는 오차를 최소화
 """
 def get_smoothed_color(obj_id, new_color):
 
@@ -179,7 +186,6 @@ def get_smoothed_color(obj_id, new_color):
 """
 영상 분석할 때 사용하는 함수입니다.
 """
-# [수정] 기존 analyze_video의 핵심 로직을 함수로 분리
 def process_video_analysis(report_id: int, content: str = None):
     # 별도의 DB 세션을 생성합니다. (백그라운드 작업용)
     db = SessionLocal()
@@ -187,8 +193,8 @@ def process_video_analysis(report_id: int, content: str = None):
     global latest_track_data, color_buffer
     ts = int(time.time())
 
-    # [주의] 실제 서비스에서는 신고 내용에 포함된 비디오 경로를 사용해야 합니다.
-    # 일단 현재 코드의 test.mp4를 유지합니다.
+    # [추후 수정] 실제 서비스에서는 신고 내용에 포함된 비디오 경로를 사용해야 합니다.
+    # 데모를 위해 현재 코드의 test.mp4를 유지
     in_path, out_path = "test.mp4", f"out_{ts}_{report_id}.mp4"
     cap, out = None, None
 
@@ -357,7 +363,7 @@ async def get_detection_logs(color: str = Query(None)):
 
 
 # 회원가입 API
-@app.post("/register")
+@app.post("/signup/user")
 async def register_user(
         request: Request,
         id: str = Form(...),            # 앱의 JSON 대신 웹의 Form 데이터를 받습니다.
