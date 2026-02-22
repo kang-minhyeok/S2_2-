@@ -141,31 +141,56 @@ latest_track_data = {}
 5. HSV로 변환 후 색상판단
 """
 def detect_color_name(roi):
+    if roi is None or roi.size == 0:
+        return "Unknown"
 
-    if roi is None or roi.size == 0: return "Unknown"
-    # 속도를 위해 24x24 리사이징
-    small_roi = cv2.resize(roi, (24, 24), interpolation=cv2.INTER_AREA)
-    data = small_roi.reshape((-1, 3)).astype(np.float32)
+    # 1. [핵심] 중앙 50% 영역만 잘라내기 (배경 노이즈 원천 차단)
+    h_img, w_img = roi.shape[:2]
+    crop_w, crop_h = int(w_img * 0.5), int(h_img * 0.5)
 
-    # K-Means (K=2)적용
-    criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 10, 1.0)
-    _, labels, centers = cv2.kmeans(data, 2, None, criteria, 5, cv2.KMEANS_RANDOM_CENTERS)
-    # BGR 추출
-    dom_bgr = centers[np.argmax(np.bincount(labels.flatten()))]
-    # HSV로 변환
-    h, s, v = cv2.cvtColor(np.uint8([[dom_bgr]]), cv2.COLOR_BGR2HSV)[0][0]
+    # 영역이 너무 작으면 원본 유지, 넉넉하면 중앙만 크롭
+    if crop_w > 0 and crop_h > 0:
+        x1 = max(0, (w_img - crop_w) // 2)
+        y1 = max(0, (h_img - crop_h) // 2)
+        roi = roi[y1:y1+crop_h, x1:x1+crop_w]
 
-    # 표준 HSV 색상 정의
-    if v < 75: return "Black"
-    if s < 50: return "White" if v > 200 else "Gray"
-    if h < 8 or h > 170: return "Red"
-    if 155 <= h <= 170: return "Pink"
-    if 8 <= h < 16: return "Orange"
-    if 16 <= h < 38: return "Yellow"
-    if 38 <= h < 88: return "Green"
-    if 88 <= h < 125: return "Blue"
-    if 125 <= h < 155: return "Purple"
-    return "Color"
+    # 2. 이미지를 HSV 색상 공간으로 변환
+    hsv_roi = cv2.cvtColor(roi, cv2.COLOR_BGR2HSV)
+
+    # 3. OpenCV 기준 정밀한 HSV 색상 범위 정의 (H:0~179, S:0~255, V:0~255)
+    color_ranges = {
+        "Black":  [(0, 0, 0), (180, 255, 60)],         # 명도가 매우 낮음
+        "White":  [(0, 0, 190), (180, 40, 255)],       # 채도가 낮고 명도가 높음
+        "Gray":   [(0, 0, 60), (180, 40, 190)],        # 채도가 낮고 명도가 중간
+        "Red1":   [(0, 50, 60), (10, 255, 255)],       # 붉은색 (H 0~10)
+        "Red2":   [(170, 50, 60), (180, 255, 255)],    # 붉은색 (H 170~180)
+        "Orange": [(10, 50, 60), (22, 255, 255)],
+        "Yellow": [(22, 50, 60), (35, 255, 255)],
+        "Green":  [(35, 50, 60), (85, 255, 255)],
+        "Blue":   [(85, 50, 60), (130, 255, 255)],
+        "Purple": [(130, 50, 60), (155, 255, 255)],
+        "Pink":   [(155, 50, 60), (170, 255, 255)]
+    }
+
+    color_counts = {}
+
+    # 4. 각 색상 범위에 해당하는 픽셀 개수 계산 (마스킹)
+    for color_name, (lower, upper) in color_ranges.items():
+        lower_np = np.array(lower, dtype=np.uint8)
+        upper_np = np.array(upper, dtype=np.uint8)
+        mask = cv2.inRange(hsv_roi, lower_np, upper_np)
+        color_counts[color_name] = cv2.countNonZero(mask)
+
+    # 빨간색은 스펙트럼 양끝(0 근처, 180 근처)에 걸쳐 있으므로 합산
+    color_counts["Red"] = color_counts.pop("Red1") + color_counts.pop("Red2")
+
+    # 5. 매칭된 픽셀이 하나도 없으면 예외 처리
+    if not color_counts or max(color_counts.values()) == 0:
+        return "Unknown"
+
+    # 6. 가장 많은 픽셀을 차지한 색상을 최종 반환
+    dominant_color = max(color_counts, key=color_counts.get)
+    return dominant_color
 
 
 
