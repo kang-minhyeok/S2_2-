@@ -185,14 +185,14 @@ def detect_color_name(roi):
 
 """
 시계열 분석
-10프레임간을 분석을 통해 객체의 색상 판별하여 순간적으로 발생하는 오차를 최소화
+5프레임간을 분석을 통해 객체의 색상 판별하여 순간적으로 발생하는 오차를 최소화
 """
 def get_smoothed_color(obj_id, new_color):
-
     if obj_id not in color_buffer:
-        color_buffer[obj_id] = deque(maxlen=10)
+        # 기존 maxlen=10 에서 5로 수정
+        color_buffer[obj_id] = deque(maxlen=5)
     color_buffer[obj_id].append(new_color)
-    if len(color_buffer[obj_id]) < 4: return new_color
+    if len(color_buffer[obj_id]) < 3: return new_color # 여기도 4에서 3으로 변경
     return Counter(color_buffer[obj_id]).most_common(1)[0][0]
 
 
@@ -236,7 +236,7 @@ def process_video_analysis(report_id: int, content: str = None):
             frame_count += 1
 
             if frame_count % 3 == 0:
-                results = model.track(frame, persist=True, verbose=False, conf=0.3, device=device)
+                results = model.track(frame, persist=True, verbose=False, conf=0.3, device=device, tracker="bytetrack.yaml")
                 new_tracks = {}
 
                 if results[0].boxes.id is not None:
