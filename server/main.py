@@ -144,19 +144,11 @@ def detect_color_name(roi):
     if roi is None or roi.size == 0:
         return "Unknown"
 
-    # 상반신 중심부 크롭 (배경 벽돌 최소화)
-    h_img, w_img = roi.shape[:2]
-    y1, y2 = int(h_img * 0.20), int(h_img * 0.60)
-    x1, x2 = int(w_img * 0.25), int(w_img * 0.75)
-
-    if y2 > y1 and x2 > x1:
-        roi = roi[y1:y2, x1:x2]
-
     hsv_roi = cv2.cvtColor(roi, cv2.COLOR_BGR2HSV)
 
-    # V(명도) 허용치 극한으로 튜닝
+    # 태양광(빛 반사) 및 그림자를 고려한 넓은 HSV 범위 설정
     color_ranges = {
-        "Black":  [(0, 0, 0), (180, 255, 120)],    # 햇빛 강반사를 고려해 V를 120까지 대폭 상향
+        "Black":  [(0, 0, 0), (180, 255, 120)],
         "White":  [(0, 0, 140), (180, 45, 255)],
         "Gray":   [(0, 0, 50), (180, 45, 140)],
         "Red1":   [(0, 70, 40), (10, 255, 255)],
@@ -176,14 +168,15 @@ def detect_color_name(roi):
         mask = cv2.inRange(hsv_roi, lower_np, upper_np)
         color_counts[color_name] = cv2.countNonZero(mask)
 
+    # Red1과 Red2 병합
     color_counts["Red"] = color_counts.pop("Red1") + color_counts.pop("Red2")
 
-    # [핵심 디버깅] 터미널에 계산된 픽셀 수를 출력합니다.
-    print(f"🎨 색상 분석 통계: {color_counts}")
+    print(f"🎨 색상 분석 픽셀 통계: {color_counts}") # 디버깅용
 
     if not color_counts or max(color_counts.values()) == 0:
         return "Unknown"
 
+    # 유채색 우선 가중치 (이너 셔츠보다 아우터 컬러를 잘 잡기 위함)
     colorful_weight = 2.0
     for color in ["Red", "Orange", "Yellow", "Green", "Blue", "Purple", "Pink"]:
         if color in color_counts:
@@ -212,14 +205,11 @@ def get_smoothed_color(obj_id, new_color):
 영상 분석할 때 사용하는 함수입니다.
 """
 def process_video_analysis(report_id: int, content: str = None):
-    # 별도의 DB 세션을 생성합니다. (백그라운드 작업용)
     db = SessionLocal()
 
     global latest_track_data, color_buffer
     ts = int(time.time())
 
-    # [추후 수정] 실제 서비스에서는 신고 내용에 포함된 비디오 경로를 사용해야 합니다.
-    # 데모를 위해 현재 코드의 test.mp4를 유지
     in_path, out_path = "test.mp4", f"out_{ts}_{report_id}.mp4"
     cap, out = None, None
 
@@ -237,11 +227,12 @@ def process_video_analysis(report_id: int, content: str = None):
         w, h = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH)), int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
         fourcc = cv2.VideoWriter_fourcc(*'mp4v')
         out = cv2.VideoWriter(out_path, fourcc, fps, (w, h))
+
         if not out.isOpened():
             print(f"❌ [비상] 비디오 파일을 열 수 없습니다! 경로: {out_path}")
-            print(f"현재 작업 디렉토리: {os.getcwd()}")
         else:
             print(f"✅ 비디오 파일 생성 시작: {out_path}")
+
         frame_count = 0
         while cap.isOpened():
             success, frame = cap.read()
@@ -249,14 +240,12 @@ def process_video_analysis(report_id: int, content: str = None):
             frame_count += 1
 
             if frame_count % 3 == 0:
-                # YOLO 추적 로직 실행
                 results = model.track(frame, persist=True, verbose=False, conf=0.3, device=device)
                 new_tracks = {}
 
                 if results[0].boxes.id is not None:
                     boxes = results[0].boxes.xyxy.cpu().numpy().astype(int)
                     ids = results[0].boxes.id.cpu().numpy().astype(int)
-                    kpts = results[0].keypoints.xy.cpu().numpy() if results[0].keypoints is not None else []
 
                     for i, obj_id in enumerate(ids):
                         if obj_id in latest_track_data and frame_count % 15 != 0:
@@ -264,13 +253,22 @@ def process_video_analysis(report_id: int, content: str = None):
                             new_tracks[obj_id]["box"] = boxes[i]
                             continue
 
-                        # 포즈 기반 ROI 추출 및 색상 감지
+                        # --- [수정된 바운딩 박스 크롭 로직 (아우터 포함)] ---
+                        x_min, y_min, x_max, y_max = boxes[i]
+                        box_w = x_max - x_min
+                        box_h = y_max - y_min
+
+                        ry1 = int(y_min + box_h * 0.15)  # 머리 제외
+                        ry2 = int(y_min + box_h * 0.55)  # 골반 위까지만
+                        rx1 = int(x_min + box_w * 0.05)  # 좌측 아우터 포함
+                        rx2 = int(x_max - box_w * 0.05)  # 우측 아우터 포함
+
+                        # 프레임 범위를 벗어나지 않도록 안전 처리
+                        ry1, ry2 = max(0, ry1), min(h, ry2)
+                        rx1, rx2 = max(0, rx1), min(w, rx2)
+
                         roi = None
-                        if i < len(kpts) and all(kpts[i][j][1] > 0 for j in [5, 6]):
-                            pk = kpts[i]
-                            sw = abs(pk[5][0] - pk[6][0])
-                            ry1, ry2 = int(min(pk[5][1], pk[6][1])), int(min(pk[5][1], pk[6][1]) + sw * 0.5)
-                            rx1, rx2 = int(min(pk[5][0], pk[6][0])), int(max(pk[5][0], pk[6][0]))
+                        if ry2 > ry1 and rx2 > rx1:
                             roi = frame[ry1:ry2, rx1:rx2]
 
                         if roi is not None and roi.size > 0:
@@ -280,7 +278,6 @@ def process_video_analysis(report_id: int, content: str = None):
 
                 latest_track_data = new_tracks
 
-            # 결과 그리기 및 저장
             for obj_id, data in latest_track_data.items():
                 if target_color == "" or target_color.lower() in data["color"].lower():
                     x1, y1, x2, y2 = data["box"]
@@ -289,18 +286,15 @@ def process_video_analysis(report_id: int, content: str = None):
                                 cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2)
             out.write(frame)
 
-        # --- [DB 저장 단계] ---
         try:
             for obj_id, color in final_results.items():
                 new_record = DetectionResult(
                     object_id=int(obj_id),
                     detected_color=color,
                     video_name=out_path
-                    # 여기에 report_id 컬럼이 있다면 추가: report_id=report_id
                 )
                 db.add(new_record)
 
-            # [추가] 신고서 테이블에도 분석된 비디오 경로 업데이트
             report = db.query(IncidentReport).filter(IncidentReport.id == report_id).first()
             if report:
                 report.video_path = out_path
@@ -314,29 +308,27 @@ def process_video_analysis(report_id: int, content: str = None):
     finally:
         if out: out.release()
         if cap: cap.release()
-        # [핵심] 웹 재생용(H.264)으로 강제 변환
+
+        # --- [수정된 FFmpeg 속도 최적화 로직] ---
         web_out_path = f"web_{out_path}"
         try:
-            # FFmpeg 옵션 최적화: preset, scale, crf 추가
             subprocess.run([
                 'ffmpeg', '-i', out_path,
                 '-vcodec', 'libx264',
-                '-preset', 'ultrafast',     # 1. 인코딩 속도 최우선 설정
-                '-vf', 'scale=1280:-1',     # 2. 720p로 해상도 낮춰서 연산량 감소
-                '-crf', '28',               # 3. 화질을 살짝 낮춰 속도 향상
-                '-threads', '0',            # 4. CPU의 모든 코어 사용
+                '-preset', 'ultrafast',
+                '-vf', 'scale=1280:-1',
+                '-crf', '28',
+                '-threads', '0',
                 '-acodec', 'aac',
                 '-movflags', 'faststart',
                 '-y', web_out_path
             ], check=True)
 
-            # 변환 성공 시, DB에 저장할 경로를 웹용 파일로 변경
             final_save_path = web_out_path
         except Exception as e:
             print(f"❌ ffmpeg 변환 실패: {e}")
-            final_save_path = out_path # 실패 시 원본이라도 유지
+            final_save_path = out_path
 
-        # DB 업데이트 (Jinja2 변수명에 맞춰 저장)
         report = db.query(IncidentReport).filter(IncidentReport.id == report_id).first()
         if report:
             report.video_path = final_save_path
