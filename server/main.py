@@ -144,31 +144,28 @@ def detect_color_name(roi):
     if roi is None or roi.size == 0:
         return "Unknown"
 
-    # 1. [핵심] 배경 벽돌/건물 원천 차단 (가로를 더 타이트하게 크롭)
+    # 상반신 중심부 크롭 (배경 벽돌 최소화)
     h_img, w_img = roi.shape[:2]
-    y1 = int(h_img * 0.20)  # 머리 완전히 제외 (가슴팍부터)
-    y2 = int(h_img * 0.60)  # 배꼽 위까지만
-    x1 = int(w_img * 0.25)  # 좌우 여백을 25%씩 날려서 배경 벽돌 삭제
-    x2 = int(w_img * 0.75)
+    y1, y2 = int(h_img * 0.20), int(h_img * 0.60)
+    x1, x2 = int(w_img * 0.25), int(w_img * 0.75)
 
     if y2 > y1 and x2 > x1:
         roi = roi[y1:y2, x1:x2]
 
     hsv_roi = cv2.cvtColor(roi, cv2.COLOR_BGR2HSV)
 
-    # 2. 햇빛 반사와 어두운 그늘을 모두 커버하는 실전용 HSV
+    # V(명도) 허용치 극한으로 튜닝
     color_ranges = {
-        "Black":  [(0, 0, 0), (180, 255, 85)],     # V(명도)를 85까지 올려서 햇빛 받은 검은 옷(ID 4) 허용
+        "Black":  [(0, 0, 0), (180, 255, 120)],    # 햇빛 강반사를 고려해 V를 120까지 대폭 상향
         "White":  [(0, 0, 140), (180, 45, 255)],
         "Gray":   [(0, 0, 50), (180, 45, 140)],
-        # 피부색(주황빛)이나 붉은 벽돌이 Red로 인식되지 않도록 S(채도) 하한선을 70으로 상향
         "Red1":   [(0, 70, 40), (10, 255, 255)],
         "Red2":   [(170, 70, 40), (180, 255, 255)],
         "Orange": [(10, 60, 50), (22, 255, 255)],
         "Yellow": [(22, 50, 50), (35, 255, 255)],
         "Green":  [(35, 50, 50), (85, 255, 255)],
         "Blue":   [(85, 50, 50), (125, 255, 255)],
-        "Purple": [(125, 30, 30), (155, 255, 255)], # 어두운 보라색(ID 3)을 잡기 위해 V 하한선을 30으로 대폭 인하
+        "Purple": [(125, 30, 30), (155, 255, 255)],
         "Pink":   [(155, 40, 40), (170, 255, 255)]
     }
 
@@ -181,10 +178,12 @@ def detect_color_name(roi):
 
     color_counts["Red"] = color_counts.pop("Red1") + color_counts.pop("Red2")
 
+    # [핵심 디버깅] 터미널에 계산된 픽셀 수를 출력합니다.
+    print(f"🎨 색상 분석 통계: {color_counts}")
+
     if not color_counts or max(color_counts.values()) == 0:
         return "Unknown"
 
-    # 3. 유채색 우선 가중치 (기존 유지)
     colorful_weight = 2.0
     for color in ["Red", "Orange", "Yellow", "Green", "Blue", "Purple", "Pink"]:
         if color in color_counts:
