@@ -146,15 +146,15 @@ def detect_color_name(roi):
 
     hsv_roi = cv2.cvtColor(roi, cv2.COLOR_BGR2HSV)
 
-    # 태양광(빛 반사) 및 그림자를 고려한 넓은 HSV 범위 설정
     color_ranges = {
         "Black":  [(0, 0, 0), (180, 255, 120)],
         "White":  [(0, 0, 140), (180, 45, 255)],
         "Gray":   [(0, 0, 50), (180, 45, 140)],
         "Red1":   [(0, 70, 40), (10, 255, 255)],
         "Red2":   [(170, 70, 40), (180, 255, 255)],
-        "Orange": [(10, 60, 50), (22, 255, 255)],
-        "Yellow": [(22, 50, 50), (35, 255, 255)],
+        # [수정] 오렌지와 노란색의 경계(Hue)를 22에서 18로 조정하여 머스타드 색상을 노란색으로 편입
+        "Orange": [(10, 60, 50), (18, 255, 255)],
+        "Yellow": [(18, 50, 50), (35, 255, 255)],
         "Green":  [(35, 50, 50), (85, 255, 255)],
         "Blue":   [(85, 50, 50), (125, 255, 255)],
         "Purple": [(125, 30, 30), (155, 255, 255)],
@@ -168,16 +168,13 @@ def detect_color_name(roi):
         mask = cv2.inRange(hsv_roi, lower_np, upper_np)
         color_counts[color_name] = cv2.countNonZero(mask)
 
-    # Red1과 Red2 병합
     color_counts["Red"] = color_counts.pop("Red1") + color_counts.pop("Red2")
-
-    print(f"🎨 색상 분석 픽셀 통계: {color_counts}") # 디버깅용
 
     if not color_counts or max(color_counts.values()) == 0:
         return "Unknown"
 
-    # 유채색 우선 가중치 (이너 셔츠보다 아우터 컬러를 잘 잡기 위함)
-    colorful_weight = 2.0
+    # [수정] 검은색 바지의 픽셀 수를 압도할 수 있도록 유채색 가중치를 3.0으로 상향
+    colorful_weight = 3.0
     for color in ["Red", "Orange", "Yellow", "Green", "Blue", "Purple", "Pink"]:
         if color in color_counts:
             color_counts[color] = int(color_counts[color] * colorful_weight)
@@ -259,7 +256,7 @@ def process_video_analysis(report_id: int, content: str = None):
                         box_h = y_max - y_min
 
                         ry1 = int(y_min + box_h * 0.15)  # 머리 제외
-                        ry2 = int(y_min + box_h * 0.55)  # 골반 위까지만
+                        ry2 = int(y_min + box_h * 0.45)  # 골반 위까지만
                         rx1 = int(x_min + box_w * 0.05)  # 좌측 아우터 포함
                         rx2 = int(x_max - box_w * 0.05)  # 우측 아우터 포함
 
