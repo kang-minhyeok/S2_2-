@@ -292,10 +292,14 @@ def process_video_analysis(report_id: int, content: str = None):
         # [핵심] 웹 재생용(H.264)으로 강제 변환
         web_out_path = f"web_{out_path}"
         try:
-            # ffmpeg를 사용하여 브라우저가 좋아하는 libx264 코덱으로 인코딩
+            # FFmpeg 옵션 최적화: preset, scale, crf 추가
             subprocess.run([
                 'ffmpeg', '-i', out_path,
                 '-vcodec', 'libx264',
+                '-preset', 'ultrafast',     # 1. 인코딩 속도 최우선 설정
+                '-vf', 'scale=1280:-1',     # 2. 720p로 해상도 낮춰서 연산량 감소
+                '-crf', '28',               # 3. 화질을 살짝 낮춰 속도 향상
+                '-threads', '0',            # 4. CPU의 모든 코어 사용
                 '-acodec', 'aac',
                 '-movflags', 'faststart',
                 '-y', web_out_path
