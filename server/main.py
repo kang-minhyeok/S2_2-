@@ -144,51 +144,53 @@ def detect_color_name(roi):
     if roi is None or roi.size == 0:
         return "Unknown"
 
-    # 1. [핵심] 중앙 50% 영역만 잘라내기 (배경 노이즈 원천 차단)
+    # 1. [핵심] 상의(가슴~어깨) 영역 집중 크롭
+    # 바지(검정/청)의 영향을 없애고, 열린 자켓을 잡기 위해 가로폭은 넓게, 세로는 위쪽만 잡습니다.
     h_img, w_img = roi.shape[:2]
-    crop_w, crop_h = int(w_img * 0.5), int(h_img * 0.5)
+    y1 = int(h_img * 0.15)  # 머리 아래부터
+    y2 = int(h_img * 0.60)  # 골반 위까지만
+    x1 = int(w_img * 0.15)  # 좌우 배경 조금만 자르기
+    x2 = int(w_img * 0.85)
 
-    # 영역이 너무 작으면 원본 유지, 넉넉하면 중앙만 크롭
-    if crop_w > 0 and crop_h > 0:
-        x1 = max(0, (w_img - crop_w) // 2)
-        y1 = max(0, (h_img - crop_h) // 2)
-        roi = roi[y1:y1+crop_h, x1:x1+crop_w]
+    if y2 > y1 and x2 > x1:
+        roi = roi[y1:y2, x1:x2]
 
-    # 2. 이미지를 HSV 색상 공간으로 변환
     hsv_roi = cv2.cvtColor(roi, cv2.COLOR_BGR2HSV)
 
-    # 3. OpenCV 기준 정밀한 HSV 색상 범위 정의 (H:0~179, S:0~255, V:0~255)
+    # 2. 그림자와 핫핑크를 고려한 정밀한 HSV 범위 재설정
     color_ranges = {
-        "Black":  [(0, 0, 0), (180, 255, 60)],         # 명도가 매우 낮음
-        "White":  [(0, 0, 190), (180, 40, 255)],       # 채도가 낮고 명도가 높음
-        "Gray":   [(0, 0, 60), (180, 40, 190)],        # 채도가 낮고 명도가 중간
-        "Red1":   [(0, 50, 60), (10, 255, 255)],       # 붉은색 (H 0~10)
-        "Red2":   [(170, 50, 60), (180, 255, 255)],    # 붉은색 (H 170~180)
-        "Orange": [(10, 50, 60), (22, 255, 255)],
-        "Yellow": [(22, 50, 60), (35, 255, 255)],
-        "Green":  [(35, 50, 60), (85, 255, 255)],
-        "Blue":   [(85, 50, 60), (130, 255, 255)],
-        "Purple": [(130, 50, 60), (155, 255, 255)],
-        "Pink":   [(155, 50, 60), (170, 255, 255)]
+        "Black":  [(0, 0, 0), (180, 255, 50)],
+        "White":  [(0, 0, 140), (180, 45, 255)],  # 명도(V) 하한선을 낮춰 그림자 진 흰색(ID 2) 허용
+        "Gray":   [(0, 0, 50), (180, 45, 140)],
+        "Red1":   [(0, 50, 50), (10, 255, 255)],
+        "Red2":   [(170, 50, 50), (180, 255, 255)],
+        "Orange": [(10, 50, 50), (22, 255, 255)],
+        "Yellow": [(22, 50, 50), (35, 255, 255)],
+        "Green":  [(35, 50, 50), (85, 255, 255)],
+        "Blue":   [(85, 50, 50), (125, 255, 255)],
+        "Purple": [(125, 40, 50), (145, 255, 255)],
+        "Pink":   [(145, 40, 50), (170, 255, 255)] # 핑크(ID 7) 영역 H값을 145~170으로 대폭 확장
     }
 
     color_counts = {}
-
-    # 4. 각 색상 범위에 해당하는 픽셀 개수 계산 (마스킹)
     for color_name, (lower, upper) in color_ranges.items():
         lower_np = np.array(lower, dtype=np.uint8)
         upper_np = np.array(upper, dtype=np.uint8)
         mask = cv2.inRange(hsv_roi, lower_np, upper_np)
         color_counts[color_name] = cv2.countNonZero(mask)
 
-    # 빨간색은 스펙트럼 양끝(0 근처, 180 근처)에 걸쳐 있으므로 합산
     color_counts["Red"] = color_counts.pop("Red1") + color_counts.pop("Red2")
 
-    # 5. 매칭된 픽셀이 하나도 없으면 예외 처리
     if not color_counts or max(color_counts.values()) == 0:
         return "Unknown"
 
-    # 6. 가장 많은 픽셀을 차지한 색상을 최종 반환
+    # 3. [핵심] 유채색 우선 가중치 부여 (Human Perception 적용)
+    # 흰색 이너와 보라색 아우터(ID 4)를 입었을 때, 사람의 눈길을 끄는 보라색을 우선 판별하도록 가중치 2배 곱하기
+    colorful_weight = 2.0
+    for color in ["Red", "Orange", "Yellow", "Green", "Blue", "Purple", "Pink"]:
+        if color in color_counts:
+            color_counts[color] = int(color_counts[color] * colorful_weight)
+
     dominant_color = max(color_counts, key=color_counts.get)
     return dominant_color
 
