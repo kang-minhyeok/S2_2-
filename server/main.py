@@ -12,6 +12,7 @@ from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from ultralytics import YOLO
+from dotenv import load_dotenv
 from sqlalchemy import create_engine, Column, Integer, String, DateTime
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
@@ -19,9 +20,28 @@ from sqlalchemy.orm import Session
 from passlib.context import CryptContext
 from pydantic import BaseModel
 import subprocess
+import google.generativeai as genai
+from fastapi import WebSocket, WebSocketDisconnect
+import asyncio
+import json
+
+# 현재 폴더의 .env 읽기
+load_dotenv()
+
+# 신고 내역에서 자연어 색상 파싱을 위한 api설정 (gemini2.5)
+API_KEY = os.getenv("GEMINI_API_KEY")
+genai.configure(api_key=API_KEY)
+llm_model = genai.GenerativeModel('models/gemini-2.5-flash')
+
+
 
 # --- [데이터베이스 설정 구간] ---
-DATABASE_URL = "mysql+pymysql://root:0727@localhost:3306/safety_db?charset=utf8mb4"
+DB_USER = os.getenv("DB_USER")
+DB_PW = os.getenv("DB_PASSWORD")
+DB_HOST = os.getenv("DB_HOST")
+DB_NAME = os.getenv("DB_NAME")
+
+DATABASE_URL = f"mysql+pymysql://{DB_USER}:{DB_PW}@{DB_HOST}:3306/{DB_NAME}?charset=utf8mb4"
 engine = create_engine(DATABASE_URL)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
@@ -54,17 +74,44 @@ class ReportCreate(BaseModel):
     phone_number: str
     ssn: str
     content: str
+    location: str # 위치 정보 필드 추가
 
-# 로그인 시 정보 확인용 class
-class UserLogin(BaseModel):
-    id: str
-    password: str
+# 소켓 연결 관리자(WebSocket)
+class ConnectionManager:
+    def __init__(self):
+        self.active_connections: dict[int, list[WebSocket]] = {}
+        self.log_history: dict[int, list[str]] = {} # 로그 보관함
 
-# 비밀번호 암호화 함수
-def get_password_hash(password):
-    return pwd_context.hash(password)
+    async def connect(self, report_id: int, websocket: WebSocket):
+        await websocket.accept()
+        if report_id not in self.active_connections:
+            self.active_connections[report_id] = []
+        self.active_connections[report_id].append(websocket)
 
-# 영상 감지 내역
+        # 연결되면 보관된 로그들을 전부 전송
+        if report_id in self.log_history:
+            for old_log in self.log_history[report_id]:
+                await websocket.send_text(old_log)
+
+    def disconnect(self, report_id: int, websocket: WebSocket):
+        if report_id in self.active_connections:
+            self.active_connections[report_id].remove(websocket)
+
+    async def send_log(self, report_id: int, message: str):
+        # 보낼 로그를 먼저 보관함에 저장
+        if report_id not in self.log_history:
+            self.log_history[report_id] = []
+        self.log_history[report_id].append(message)
+
+        if report_id in self.active_connections:
+            for connection in self.active_connections[report_id]:
+                try:
+                    await connection.send_text(message)
+                except:
+                    pass
+
+
+# 영상 감지 내역 테이블
 class DetectionResult(Base):
     __tablename__ = "detection_results"
 
@@ -107,6 +154,7 @@ class IncidentReport(Base):
     phone_number = Column(String(20), nullable=False) # 전화번호
     ssn = Column(String(255), nullable=False) # 주민번호 (암호화 저장)
     content = Column(String(500), nullable=True) # 신고 상세 내용
+    location = Column(String(200), nullable=True) # 위치 정보 컬럼 추가
     video_path = Column(String(200), nullable=True) # 분석할 영상 경로
     created_at = Column(DateTime, default=datetime.datetime.now)
 
@@ -117,69 +165,111 @@ Base.metadata.create_all(bind=engine)
 
 
 app = FastAPI()
+manager = ConnectionManager()
+main_loop = None
 
-# 1. GPU 장치 설정 및 로드
+@app.on_event("startup")
+async def startup_event():
+    global main_loop
+    main_loop = asyncio.get_running_loop()
+
+# GPU 장치 설정 및 로드
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
-print(f"✅ 실행 장치: {device} ")
+print(f" 실행 장치: {device} ")
 
-# Nano 모델을 GPU 메모리로 로드
+# yolov8 모델을 GPU 메모리로 로드
 model = YOLO('yolov8n-pose.pt').to(device)
 
-# 2. 전역 메모리 설정
+# 전역 메모리 설정
 # 시계열 분석을 위한 color_buffer
 # 프레임 skip시 전 프레임의 객체박스 위치를 기록할 latest_track_data
 color_buffer = {}
 latest_track_data = {}
 
+"""
+LLM(Gemini API) 이용해 자연어 신고 내용에서 타겟의 '종류'와 '색상'을 추출
+return은 json형태
+"""
+def extract_color_with_llm(content: str) -> dict:
+    if not content:
+        return {}
+
+    prompt = f"""
+    당신은 CCTV 관제 시스템의 분석 AI입니다.
+    다음 신고 내용에서 추적 대상의 '옷 종류'와 '색상'을 JSON 형식으로 추출하세요.
+    '옷 종류'는 'top'(상의) 또는 'bottom'(하의) 중 하나여야 합니다.
+    '색상'은 다음 [허용된 단어] 중 하나여야 합니다.
+    [허용된 단어]: Black, White, Red, Blue, Yellow, Green, Purple, Gray, Pink, Orange, Brown, Navy, Skyblue
+
+    신고 내용: "{content}"
+
+    출력 형식 (JSON):
+    {{
+      "type": "top" or "bottom",
+      "color": "ColorName"
+    }}
+    """
+    try:
+        response = llm_model.generate_content(prompt)
+        clean_response = response.text.strip().replace("```json", "").replace("```", "").strip()
+        result = json.loads(clean_response)
+
+        allowed_colors = ["Black", "White", "Red", "Blue", "Yellow", "Green", "Purple", "Gray", "Pink", "Orange", "Brown", "Navy", "Skyblue"]
+        if (result.get("type") in ["top", "bottom"] and result.get("color") in allowed_colors):
+            return result
+        return {}
+    except Exception as e:
+        print(f" LLM 파싱 에러: {e}")
+        return {}
+
 
 """
 표준 Hue 범위 기반 색상 판별 로직
-1. 분석할 영역(ROI)를 받음-> 
-2. 24x24로 리사이징-> 
-3. K-mean(k=2)적용-> 
-4. 가장 큰 군집 BGR을 계산-> 
-5. HSV로 변환 후 색상판단
+1. ROI 내 대표 색상을 판단(K-means)
+2. BGR->HSV로 변경
+3. 변경된 HSV값으로 색상을 판별해 return
 """
 def detect_color_name(roi):
     if roi is None or roi.size == 0:
         return "Unknown"
 
-    hsv_roi = cv2.cvtColor(roi, cv2.COLOR_BGR2HSV)
+    small_roi = cv2.resize(roi, (24, 24))
+    pixels = small_roi.reshape((-1, 3))
+    pixels = np.float32(pixels)
 
-    color_ranges = {
-        "Black":  [(0, 0, 0), (180, 255, 120)],
-        "White":  [(0, 0, 140), (180, 45, 255)],
-        "Gray":   [(0, 0, 50), (180, 45, 140)],
-        "Red1":   [(0, 70, 40), (10, 255, 255)],
-        "Red2":   [(175, 70, 40), (180, 255, 255)],
-        "Orange": [(10, 60, 50), (18, 255, 255)],
-        "Yellow": [(18, 50, 50), (35, 255, 255)],
-        "Green":  [(35, 50, 50), (85, 255, 255)],
-        "Blue":   [(85, 50, 50), (125, 255, 255)],
-        "Purple": [(125, 30, 30), (155, 255, 255)],
-        "Pink":   [(150, 30, 40), (175, 255, 255)]
-    }
+    criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 10, 1.0)
+    _, labels, centers = cv2.kmeans(pixels, 2, None, criteria, 10, cv2.KMEANS_RANDOM_CENTERS)
 
-    color_counts = {}
-    for color_name, (lower, upper) in color_ranges.items():
-        lower_np = np.array(lower, dtype=np.uint8)
-        upper_np = np.array(upper, dtype=np.uint8)
-        mask = cv2.inRange(hsv_roi, lower_np, upper_np)
-        color_counts[color_name] = cv2.countNonZero(mask)
+    counts = np.bincount(labels.flatten())
+    dominant_color_bgr = centers[np.argmax(counts)]
 
-    color_counts["Red"] = color_counts.pop("Red1") + color_counts.pop("Red2")
+    hsv_pixel = cv2.cvtColor(np.uint8([[dominant_color_bgr]]), cv2.COLOR_BGR2HSV)[0][0]
+    h, s, v = int(hsv_pixel[0]), int(hsv_pixel[1]), int(hsv_pixel[2])
 
-    if not color_counts or max(color_counts.values()) == 0:
-        return "Unknown"
+    # 무채색 판별
+    if v < 75: return "Black"
+    if s < 25 and v > 180: return "White"
+    if s < 35 and v < 180: return "Gray"
 
-    # [수정] 검은색 바지의 픽셀 수를 압도할 수 있도록 유채색 가중치를 3.0으로 상향
-    colorful_weight = 3.0
-    for color in ["Red", "Orange", "Yellow", "Green", "Blue", "Purple", "Pink"]:
-        if color in color_counts:
-            color_counts[color] = int(color_counts[color] * colorful_weight)
+    # 유채색 판별 (범위 확장 및 세분화)
+    if (0 <= h < 10 or 170 <= h <= 180):
+        if s > 100 and v > 100: return "Red"
+        else: return "Brown" # 채도가 낮으면 갈색 계열
+    elif 10 <= h < 25:
+        if s > 100 and v > 100: return "Orange"
+        else: return "Brown"
+    elif 25 <= h < 35: return "Yellow"
+    elif 35 <= h < 85: return "Green"
+    elif 85 <= h < 100:
+        if s > 90: return "Skyblue"
+        else: return "Blue"
+    elif 100 <= h < 130:
+        if s > 90 and v > 50: return "Blue"
+        else: return "Navy" # 채도가 낮으면 남색
+    elif 130 <= h < 145: return "Purple"
+    elif 145 <= h < 170: return "Pink"
 
-    dominant_color = max(color_counts, key=color_counts.get)
-    return dominant_color
+    return "Unknown"
 
 
 
@@ -189,146 +279,230 @@ def detect_color_name(roi):
 """
 def get_smoothed_color(obj_id, new_color):
     if obj_id not in color_buffer:
-        # 기존 maxlen=10 에서 5로 수정
         color_buffer[obj_id] = deque(maxlen=5)
     color_buffer[obj_id].append(new_color)
-    if len(color_buffer[obj_id]) < 3: return new_color # 여기도 4에서 3으로 변경
+    if len(color_buffer[obj_id]) < 3: return new_color
     return Counter(color_buffer[obj_id]).most_common(1)[0][0]
 
 
 
 """
 영상 분석할 때 사용하는 함수입니다.
+신고 내역 content를 기반으로 영상 내부의 객체를 찾습니다.
+신고 내역에서 llm을 통해 색상text를 추출.
+test영상 파일을 load.
+load된 영상에 yolo를 이용해 객체를 추출.
+추출된 객체와 색상text가 일치하면 box로 강조 표시.
+분석이 완료되면 web버전 영상으로 변경 후 업로드.
 """
 def process_video_analysis(report_id: int, content: str = None):
+
+    # 웹 상에서 해당 id의 신고 내역에 표시될 로그 함수.
+    def emit_log(msg):
+        print(f" [EMIT_LOG] {msg}")
+        if main_loop:
+            asyncio.run_coroutine_threadsafe(manager.send_log(report_id, msg), main_loop)
+        else:
+            print(" [ERROR] 메인 루프가 잡히지 않아 로그를 보낼 수 없습니다.")
+
     db = SessionLocal()
+    video_sources = ["test1.mp4", "test2.mp4", "test3.mp4", "test4.mp4"]
+    output_dir = os.path.join("static", "outputs", f"report_{report_id}")
+    os.makedirs(output_dir, exist_ok=True)
 
-    global latest_track_data, color_buffer
-    ts = int(time.time())
+    target_info = extract_color_with_llm(content)
+    target_color = target_info.get("color", "")
+    target_type = target_info.get("type", "")
 
-    in_path, out_path = "test.mp4", f"out_{ts}_{report_id}.mp4"
-    cap, out = None, None
-
-    latest_track_data = {}
-    color_buffer = {}
-    final_results = {}
+    print(f" LLM 추출 결과: 색상={target_color}, 부위={target_type}")
+    log_message = f" 신고 - 타겟 조건: {target_color} {target_type}" if target_color else "모든 객체"
+    emit_log(log_message)
 
     try:
-        color_map = {"검은": "Black", "흰": "White", "빨간": "Red", "파란": "Blue",
-                     "노란": "Yellow", "초록": "Green", "보라": "Purple", "회": "Gray", "분홍": "Pink"}
-        target_color = next((v for k, v in color_map.items() if content and k in content), "")
+        for i, src_name in enumerate(video_sources, 1):
+            if not os.path.exists(src_name):
+                print(f" [경고] {src_name} 파일이 없습니다. 건너뜁니다.")
+                continue
 
-        cap = cv2.VideoCapture(in_path)
-        fps = int(cap.get(cv2.CAP_PROP_FPS))
-        w, h = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH)), int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-        fourcc = cv2.VideoWriter_fourcc(*'mp4v')
-        out = cv2.VideoWriter(out_path, fourcc, fps, (w, h))
+            print(f" [CH {i}] 분석 시작: {src_name} (Target: {target_color} {target_type})")
+            emit_log(f"CAM 0{i} 채널 분석 시작...")
 
-        if not out.isOpened():
-            print(f"❌ [비상] 비디오 파일을 열 수 없습니다! 경로: {out_path}")
-        else:
-            print(f"✅ 비디오 파일 생성 시작: {out_path}")
+            web_out_filename = os.path.join(output_dir, f"web_out_{report_id}_{i}.mp4")
 
-        frame_count = 0
-        while cap.isOpened():
-            success, frame = cap.read()
-            if not success: break
-            frame_count += 1
+            cap = cv2.VideoCapture(src_name)
+            fps = int(cap.get(cv2.CAP_PROP_FPS))
+            orig_w, orig_h = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH)), int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
 
-            if frame_count % 3 == 0:
-                results = model.track(frame, persist=True, verbose=False, conf=0.3, device=device, tracker="bytetrack.yaml")
-                new_tracks = {}
+            # --- [OPTIMIZATION 1: Set a processing resolution] ---
+            PROC_WIDTH = 1280
+            w = PROC_WIDTH
+            h = int(orig_h * (PROC_WIDTH / orig_w))
 
-                if results[0].boxes.id is not None:
-                    boxes = results[0].boxes.xyxy.cpu().numpy().astype(int)
-                    ids = results[0].boxes.id.cpu().numpy().astype(int)
+            # --- [OPTIMIZATION 2: Pipe frames directly to FFmpeg] ---
+            ffmpeg_command = [
+                'ffmpeg', '-y', '-f', 'rawvideo', '-vcodec', 'rawvideo',
+                '-pix_fmt', 'bgr24', '-s', f'{w}x{h}', '-r', str(fps),
+                '-i', '-', '-vcodec', 'libx264', '-preset', 'ultrafast',
+                '-crf', '28', '-pix_fmt', 'yuv420p', web_out_filename
+            ]
+            ffmpeg_process = subprocess.Popen(ffmpeg_command, stdin=subprocess.PIPE)
 
-                    for i, obj_id in enumerate(ids):
-                        if obj_id in latest_track_data and frame_count % 15 != 0:
-                            new_tracks[obj_id] = latest_track_data[obj_id]
-                            new_tracks[obj_id]["box"] = boxes[i]
-                            continue
+            local_track_data = {}
+            local_color_buffer = {}
+            frame_count = 0
+            last_log_time = 0
 
-                        # --- [수정된 바운딩 박스 크롭 로직 (아우터 포함)] ---
-                        x_min, y_min, x_max, y_max = boxes[i]
-                        box_w = x_max - x_min
-                        box_h = y_max - y_min
+            while cap.isOpened():
+                success, original_frame = cap.read()
+                if not success: break
 
-                        ry1 = int(y_min + box_h * 0.15)  # 머리 제외
-                        ry2 = int(y_min + box_h * 0.45)  # 골반 위까지만
-                        rx1 = int(x_min + box_w * 0.05)  # 좌측 아우터 포함
-                        rx2 = int(x_max - box_w * 0.05)  # 우측 아우터 포함
+                # Resize frame before any processing
+                frame = cv2.resize(original_frame, (w, h))
+                frame_count += 1
 
-                        # 프레임 범위를 벗어나지 않도록 안전 처리
-                        ry1, ry2 = max(0, ry1), min(h, ry2)
-                        rx1, rx2 = max(0, rx1), min(w, rx2)
+                if frame_count % 3 == 0:
+                    results = model.track(frame, persist=True, verbose=False, conf=0.3, device=device, tracker="bytetrack.yaml")
+                    new_tracks = {}
 
-                        roi = None
-                        if ry2 > ry1 and rx2 > rx1:
-                            roi = frame[ry1:ry2, rx1:rx2]
+                    if results[0].boxes.id is not None:
+                        boxes = results[0].boxes.xyxy.cpu().numpy().astype(int)
+                        ids = results[0].boxes.id.cpu().numpy().astype(int)
 
-                        if roi is not None and roi.size > 0:
-                            stable_color = get_smoothed_color(obj_id, detect_color_name(roi))
-                            new_tracks[obj_id] = {"box": boxes[i], "color": stable_color}
-                            final_results[obj_id] = stable_color
+                        has_keypoints = results[0].keypoints is not None
+                        if has_keypoints:
+                            kpts = results[0].keypoints.xy.cpu().numpy().astype(int)
 
-                latest_track_data = new_tracks
+                        for j, obj_id in enumerate(ids):
+                            x1, y1, x2, y2 = boxes[j]
+                            rois = []
+                            roi_boxes_for_vis = []
 
-            for obj_id, data in latest_track_data.items():
-                if target_color == "" or target_color.lower() in data["color"].lower():
-                    x1, y1, x2, y2 = data["box"]
-                    cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 0, 255), 3)
-                    cv2.putText(frame, f"ID:{obj_id} {data['color']}", (x1, y1 - 10),
-                                cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2)
-            out.write(frame)
+                            if has_keypoints and len(kpts[j]) >= 17:
+                                if target_type != "bottom": # 상의 또는 기본
+                                    shoulder_l, shoulder_r = kpts[j][5], kpts[j][6]
+                                    hip_l, hip_r = kpts[j][11], kpts[j][12]
+                                    valid_pts = [p for p in [shoulder_l, shoulder_r, hip_l, hip_r] if p[0] > 0 and p[1] > 0]
+                                    if len(valid_pts) >= 3:
+                                        pts_array = np.array(valid_pts)
+                                        tx1, ty1 = np.min(pts_array, axis=0)
+                                        tx2, ty2 = np.max(pts_array, axis=0)
+                                        margin_x = int((tx2 - tx1) * 0.1)
+                                        crop_x1, crop_y1 = max(0, tx1 + margin_x), max(0, ty1)
+                                        crop_x2, crop_y2 = min(w, tx2 - margin_x), min(h, ty2)
+                                        if crop_y2 > crop_y1 and crop_x2 > crop_x1:
+                                            rois.append(frame[crop_y1:crop_y2, crop_x1:crop_x2])
+                                            roi_boxes_for_vis.append((crop_x1, crop_y1, crop_x2, crop_y2))
 
-        try:
-            for obj_id, color in final_results.items():
-                new_record = DetectionResult(
-                    object_id=int(obj_id),
-                    detected_color=color,
-                    video_name=out_path
-                )
-                db.add(new_record)
+                                elif target_type == "bottom": # 하의
+                                    # 왼쪽 다리
+                                    hip_l, knee_l, ankle_l = kpts[j][11], kpts[j][13], kpts[j][15]
+                                    leg_l_pts = [p for p in [hip_l, knee_l, ankle_l] if p[0] > 0 and p[1] > 0]
+                                    if len(leg_l_pts) >= 2:
+                                        pts_array = np.array(leg_l_pts)
+                                        lx1, ly1 = np.min(pts_array, axis=0)
+                                        lx2, ly2 = np.max(pts_array, axis=0)
+                                        margin_x = int((lx2 - lx1) * 0.5)
+                                        crop_x1, crop_y1 = max(0, lx1 - margin_x), max(0, ly1)
+                                        crop_x2, crop_y2 = min(w, lx2 + margin_x), min(h, ly2)
+                                        if crop_y2 > crop_y1 and crop_x2 > crop_x1:
+                                            rois.append(frame[crop_y1:crop_y2, crop_x1:crop_x2])
+                                            roi_boxes_for_vis.append((crop_x1, crop_y1, crop_x2, crop_y2))
 
-            report = db.query(IncidentReport).filter(IncidentReport.id == report_id).first()
-            if report:
-                report.video_path = out_path
+                                    # 오른쪽 다리
+                                    hip_r, knee_r, ankle_r = kpts[j][12], kpts[j][14], kpts[j][16]
+                                    leg_r_pts = [p for p in [hip_r, knee_r, ankle_r] if p[0] > 0 and p[1] > 0]
+                                    if len(leg_r_pts) >= 2:
+                                        pts_array = np.array(leg_r_pts)
+                                        rx1, ry1 = np.min(pts_array, axis=0)
+                                        rx2, ry2 = np.max(pts_array, axis=0)
+                                        margin_x = int((rx2 - rx1) * 0.5)
+                                        crop_x1, crop_y1 = max(0, rx1 - margin_x), max(0, ry1)
+                                        crop_x2, crop_y2 = min(w, rx2 + margin_x), min(h, ry2)
+                                        if crop_y2 > crop_y1 and crop_x2 > crop_x1:
+                                            rois.append(frame[crop_y1:crop_y2, crop_x1:crop_x2])
+                                            roi_boxes_for_vis.append((crop_x1, crop_y1, crop_x2, crop_y2))
 
-            db.commit()
-            print(f"✅ 신고번호 {report_id}: {len(final_results)}건 탐지 기록 저장 완료")
-        except Exception as e:
-            db.rollback()
-            print(f"❌ 분석 결과 저장 실패: {e}")
+                            if not rois: # 백업 로직
+                                roi_h, roi_w = y2 - y1, x2 - x1
+                                if target_type == "bottom":
+                                    crop_y1, crop_y2 = int(y1 + roi_h * 0.55), int(y1 + roi_h * 0.95)
+                                else:
+                                    crop_y1, crop_y2 = int(y1 + roi_h * 0.20), int(y1 + roi_h * 0.45)
+                                crop_x1, crop_x2 = int(x1 + roi_w * 0.35), int(x2 - roi_w * 0.35)
+                                crop_y1, crop_y2 = max(0, crop_y1), min(h, crop_y2)
+                                crop_x1, crop_x2 = max(0, crop_x1), min(w, crop_x2)
+                                if crop_y2 > crop_y1 and crop_x2 > crop_x1:
+                                    rois.append(frame[crop_y1:crop_y2, crop_x1:crop_x2])
+                                    roi_boxes_for_vis.append((crop_x1, crop_y1, crop_x2, crop_y2))
 
-    finally:
-        if out: out.release()
-        if cap: cap.release()
+                            detected_colors = [detect_color_name(r) for r in rois if r is not None and r.size > 0]
+                            stable_color = "Unknown"
 
-        # --- [수정된 FFmpeg 속도 최적화 로직] ---
-        web_out_path = f"web_{out_path}"
-        try:
-            subprocess.run([
-                'ffmpeg', '-i', out_path,
-                '-vcodec', 'libx264',
-                '-preset', 'ultrafast',
-                '-vf', 'scale=1280:-1',
-                '-crf', '28',
-                '-threads', '0',
-                '-acodec', 'aac',
-                '-movflags', 'faststart',
-                '-y', web_out_path
-            ], check=True)
+                            if detected_colors:
+                                if obj_id not in local_color_buffer:
+                                    local_color_buffer[obj_id] = deque(maxlen=10)
+                                for color in detected_colors:
+                                    if color != "Unknown":
+                                        local_color_buffer[obj_id].append(color)
 
-            final_save_path = web_out_path
-        except Exception as e:
-            print(f"❌ ffmpeg 변환 실패: {e}")
-            final_save_path = out_path
+                                current_buffer = local_color_buffer.get(obj_id)
+                                if current_buffer:
+                                    if len(current_buffer) >= 3:
+                                        stable_color = Counter(current_buffer).most_common(1)[0][0]
+                                    else:
+                                        stable_color = current_buffer[-1]
+
+                            new_tracks[obj_id] = {
+                                "box": boxes[j],
+                                "color": stable_color,
+                                "roi_boxes": roi_boxes_for_vis
+                            }
+                    local_track_data = new_tracks
+
+                current_time = time.time()
+                for obj_id, data in local_track_data.items():
+                    if target_color == "" or target_color.lower() in data["color"].lower():
+                        bx1, by1, bx2, by2 = data["box"]
+                        cv2.rectangle(frame, (bx1, by1), (bx2, by2), (0, 0, 255), 3)
+                        cv2.putText(frame, f"TARGET ID:{obj_id} {data['color']}", (bx1, by1 - 10),
+                                    cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2)
+
+                        for rx1, ry1, rx2, ry2 in data.get("roi_boxes", []):
+                            cv2.rectangle(frame, (rx1, ry1), (rx2, ry2), (0, 255, 0), 2)
+
+                        if data.get("roi_boxes"):
+                            rx1, ry1, _, _ = data["roi_boxes"][0]
+                            cv2.putText(frame, "ROI", (rx1, ry1 - 5),
+                                        cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 1)
+
+                        if current_time - last_log_time > 1.5:
+                            emit_log(f"MATCH: CAM 0{i}에서 {data['color']} {target_type if target_type else '객체'}(ID:{obj_id}) 추적 중")
+                            last_log_time = current_time
+
+                try:
+                    ffmpeg_process.stdin.write(frame.tobytes())
+                except (IOError, BrokenPipeError) as e:
+                    print(f" FFmpeg 파이프 에러: {e}. 스트리밍을 중단합니다.")
+                    break
+
+            cap.release()
+            ffmpeg_process.stdin.close()
+            ffmpeg_process.wait()
+            print(f" [CH {i}] 변환 완료: {web_out_filename}")
+            emit_log(f"VIDEO_READY_CH:{i}")
+
+        emit_log("모든 분석 프로세스 종료")
 
         report = db.query(IncidentReport).filter(IncidentReport.id == report_id).first()
         if report:
-            report.video_path = final_save_path
+            report.video_path = f"outputs/report_{report_id}/web_out_{report_id}_1.mp4"
             db.commit()
+
+    except Exception as e:
+        db.rollback()
+        print(f" 분석 프로세스 전체 오류: {e}")
+    finally:
+        db.close()
 
 
 # DB 세션을 가져오는 헬퍼 함수
@@ -339,16 +513,26 @@ def get_db():
     finally:
         db.close()
 
+# WebSocket 엔드포인트
+@app.websocket("/ws/{report_id}")
+async def websocket_endpoint(websocket: WebSocket, report_id: str):
+    r_id = int(report_id) if report_id.isdigit() else report_id
+    print(f" [DEBUG] 새 연결 시도: Report ID {r_id}")
+    await manager.connect(r_id, websocket)
+    try:
+        while True:
+            await websocket.receive_text() # 연결 유지를 위한 대기
+    except WebSocketDisconnect:
+        manager.disconnect(report_id, websocket)
+
+
 """
 앱이나 웹에서 탐지 기록을 조회할 때 사용하는 API입니다.
 특정 색상만 골라서 보고 싶을 때 /logs?color=Red 처럼 요청할 수 있습니다.
 """
 @app.get("/logs")
 async def get_detection_logs(color: str = Query(None)):
-    """
-    앱이나 웹에서 탐지 기록을 조회할 때 사용하는 API입니다.
-    특정 색상만 골라서 보고 싶을 때 /logs?color=Red 처럼 요청할 수 있습니다.
-    """
+
     db = SessionLocal()
     try:
         # 1. DB에서 쿼리 생성
@@ -424,21 +608,22 @@ async def submit_report(
         background_tasks: BackgroundTasks,
         db: Session = Depends(get_db)
 ):
-    # 1. 주민번호 암호화 저장
+    # 주민번호 암호화 저장
     hashed_ssn = pwd_context.hash(report.ssn)
 
     new_report = IncidentReport(
         name=report.name,
         phone_number=report.phone_number,
         ssn=hashed_ssn,
-        content=report.content
+        content=report.content,
+        location=report.location # 위치 정보 저장
     )
 
     db.add(new_report)
     db.commit()
     db.refresh(new_report)
 
-    # 2. [핵심] 비디오 분석 함수를 백그라운드 작업으로 등록
+    # 비디오 분석 함수를 background_task로 등록
     # 사용자가 보낸 신고내용(content)을 함께 넘겨 특정 색상을 찾게 합니다.
     background_tasks.add_task(process_video_analysis, report_id=new_report.id, content=report.content)
 
@@ -461,23 +646,23 @@ def signup_admin(request: Request,
                  db: Session = Depends(get_db)
 ):
 
-    # 1. 소속 코드 검증
+    # 소속 코드 검증
     # 입력한 코드가 DB에 있는지 확인하고, 없으면 에러 발생
     affiliation_data = db.query(Affiliation).filter(Affiliation.code == orgCode).first()
 
     if not affiliation_data:
         return HTMLResponse(content="<script>alert('유효하지 않은 소속 코드입니다.'); history.back();</script>", status_code=400)
 
-    # 2. 아이디 중복 확인
+    # 아이디 중복 확인
     existing_user = db.query(User).filter(User.id == id).first()
     if existing_user:
         return HTMLResponse(content="<script>alert('이미 사용 중인 아이디입니다.'); history.back();</script>", status_code=400)
 
-    # 3. 비밀번호 해싱
+    # 비밀번호 해싱
     hashed_password = pwd_context.hash(password)
     hashed_res_back = pwd_context.hash(residentBack)
 
-    # 4. DB 저장
+    # DB 저장
     # role은 "ADMIN", affiliation은 코드에 해당하는 이름(ex: oo경찰서)으로 자동 저장
     new_user = User(
         id=id,
@@ -581,24 +766,24 @@ async def signup_admin_page(request: Request):
 @app.get("/admin", response_class=HTMLResponse)
 async def admin_dashboard(request: Request, db: Session = Depends(get_db)):
 
-    # 1. 로그인 여부 확인
+    # 로그인 여부 확인
     user_id = request.cookies.get("session_user")
     if not user_id:
         # 로그인이 안 되어 있다면 로그인 페이지로 튕김
         return RedirectResponse(url="/login", status_code=303)
 
-    # 2. 사용자 정보 및 권한 조회
+    # 사용자 정보 및 권한 조회
     user = db.query(User).filter(User.id == user_id).first()
 
-    # 3. 관리자(ADMIN) 권한 체크
+    # 관리자(ADMIN) 권한 체크
     # 유저가 없거나, 역할이 ADMIN이 아니라면 '접근 거부' 페이지 리턴
     if not user or user.role != "ADMIN":
         return templates.TemplateResponse("access-denied.html", {"request": request})
 
-    # 4. 권한 통과 시: IncidentReport 테이블에서 모든 데이터를 최신순으로 가져옴
+    # 권한 통과 시: IncidentReport 테이블에서 모든 데이터를 최신순으로 가져옴
     reports = db.query(IncidentReport).order_by(IncidentReport.id.desc()).all()
 
-    # 5. admin_dashboard.html로 렌더링
+    # admin_dashboard.html로 렌더링
     return templates.TemplateResponse("admin_dashboard.html", {
         "request": request,
         "reports": reports,
@@ -662,3 +847,11 @@ async def get_video(video_name: str):
         raise HTTPException(status_code=404)
 
     return FileResponse(file_path, media_type="video/mp4")
+
+
+
+# 로컬 환경에서 실행시.
+    if __name__ == "__main__":
+        import uvicorn
+        # 로컬 환경(127.0.0.1)에서 8000번 포트로 서버를 즉시 실행합니다.
+        uvicorn.run(app, host="127.0.0.1", port=8000)
