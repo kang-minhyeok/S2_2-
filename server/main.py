@@ -255,10 +255,10 @@ def detect_color_name(roi):
     if (0 <= h < 10 or 170 <= h <= 180):
         if s > 100 and v > 100: return "Red"
         else: return "Brown" # 채도가 낮으면 갈색 계열
-    elif 10 <= h < 25:
+    elif 10 <= h < 18:
         if s > 100 and v > 100: return "Orange"
         else: return "Brown"
-    elif 25 <= h < 35: return "Yellow"
+    elif 18 <= h < 35: return "Yellow"
     elif 35 <= h < 85: return "Green"
     elif 85 <= h < 100:
         if s > 90: return "Skyblue"
