@@ -246,28 +246,56 @@ def detect_color_name(roi):
     hsv_pixel = cv2.cvtColor(np.uint8([[dominant_color_bgr]]), cv2.COLOR_BGR2HSV)[0][0]
     h, s, v = int(hsv_pixel[0]), int(hsv_pixel[1]), int(hsv_pixel[2])
 
-    # 무채색 판별
-    if v < 75: return "Black"
-    if s < 25 and v > 180: return "White"
-    if s < 35 and v < 180: return "Gray"
 
     # 유채색 판별 (범위 확장 및 세분화)
-    if (0 <= h < 10 or 170 <= h <= 180):
-        if s > 100 and v > 100: return "Red"
-        else: return "Brown" # 채도가 낮으면 갈색 계열
-    elif 10 <= h < 18:
-        if s > 100 and v > 100: return "Orange"
+    if v < 50: return "Black"
+    if s < 30 and v > 190: return "White"
+    if s < 40 and v < 190: return "Gray"
+
+
+
+    # 빨강/갈색/분홍 계열
+    if (0 <= h < 10 or 165 <= h <= 180):
+        if s > 120 and v > 100:
+            return "Red" # 확실히 진하고 선명한 빨강
+        elif s > 50 and v > 150:
+            return "Pink" # 빨간 기운이 도는데 밝고 연하면 분홍으로 판정 [cite: 2026-03-15]
+        else:
+            return "Brown" # 채도가 낮거나 어두우면 갈색
+
+    # 주황/갈색 계열
+    elif 10 <= h < 22:
+        if s > 100 and v > 80: return "Orange"
         else: return "Brown"
-    elif 18 <= h < 35: return "Yellow"
-    elif 35 <= h < 85: return "Green"
+
+    # 노랑 계열
+    elif 22 <= h < 38:
+        return "Yellow"
+
+    # 초록 계열
+    elif 38 <= h < 85:
+        return "Green"
+
+    # 하늘/파랑 계열
     elif 85 <= h < 100:
         if s > 90: return "Skyblue"
         else: return "Blue"
-    elif 100 <= h < 130:
+
+    # 남색/파랑 계열
+    elif 100 <= h < 125:
         if s > 90 and v > 50: return "Blue"
-        else: return "Navy" # 채도가 낮으면 남색
-    elif 130 <= h < 145: return "Purple"
-    elif 145 <= h < 170: return "Pink"
+        else: return "Navy"
+
+    # 보라 계열
+    elif 125 <= h < 140:
+        return "Purple"
+
+    # 분홍 계열
+    elif 140 <= h < 165:
+        if s > 40:
+            return "Pink"
+        else:
+            return "Gray" # 채도가 너무 낮으면 무채색으로 간주
 
     return "Unknown"
 
