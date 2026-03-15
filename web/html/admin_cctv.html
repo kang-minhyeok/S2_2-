@@ -3,52 +3,76 @@
 <head>
 	<meta charset="UTF-8" />
 	<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-	<title>CCTV 자료 - No.{{ report.id }}</title>
+	<title>Safe-Link 통합 관제 - No.{{ report.id }}</title>
 	<link rel="stylesheet" href="/static/css/admin_cctv.css" />
 </head>
 <body>
 
 <header class="top">
-	<a class="logo" href="/">가드허브</a>
+	<a class="logo" href="/">GUARD HUB</a>
+	<div class="sys-status">
+		<span>네트워크: 정상</span>
+		<span>GPU: <span style="color:#00ff00">CUDA 가속 활성</span></span>
+		<span id="clock"></span>
+	</div>
 </header>
 
 <main class="wrap">
-	<div class="head">
+	<div class="head-info">
 		<div>
-			<h2 class="page-title">CCTV 자료</h2>
-			<div class="meta">신고 번호: {{ report.id }} | 작성자: {{ report.name }}</div>
+			<h2 class="page-title"><span class="live-tag">LIVE</span> 현장 주변 입체 관제</h2>
+			<div style="color:#888; margin-top:5px; font-size:0.95rem;">
+				신고번호: <strong>{{ report.id }}</strong> |
+				탐지대상: <span style="color:#00ff00; font-weight:bold;">{{ report.content }}</span> |
+				신고자: {{ report.name }}
+			</div>
 		</div>
-
 		<div class="actions">
-			<a class="btn" href="/admin/{{ report.id }}">상세로</a>
-			<a class="btn" href="/admin">목록으로</a>
+			<a class="btn" href="/admin/{{ report.id }}">상세 정보</a>
+			<a class="btn" href="/admin">목록으로 돌아가기</a>
 		</div>
 	</div>
 
-	<section class="single-video">
-		<div class="panel">
-			<div class="panel-head">
-				<div class="panel-title">분석된 CCTV 영상</div>
-				<div class="panel-sub">AI가 분석하여 저장한 영상을 재생합니다.</div>
-			</div>
+	<section class="cctv-grid">
+		<div class="v-item main">
+			<div class="cam-label">CAM 01 - CENTER (ANALYSIS)</div>
+			<video autoplay controls loop>
+				<source src="/video/web_out_{{ report.id }}_1.mp4" type="video/mp4" />
+			</video>
+		</div>
 
-			<div class="video-box">
-				{% if report.video_path %}
-				<video class="player" controls autoplay style="width: 100%; border-radius: 8px;">
-					<source src="/video/{{ report.video_path }}" type="video/mp4" />
-					브라우저가 비디오 재생을 지원하지 않습니다.
-				</video>
-				{% else %}
-				<div class="placeholder">
-					<div class="ph-icon">🎥</div>
-					<div class="ph-title">등록된 CCTV 영상이 없습니다</div>
-					<div class="ph-desc">영상 분석이 완료되지 않았거나 파일이 존재하지 않습니다.</div>
-				</div>
-				{% endif %}
-			</div>
+		<div class="v-item ch-02">
+			<div class="cam-label">CAM 02 - NORTH STREET</div>
+			<video autoplay muted loop>
+				<source src="/video/web_out_{{ report.id }}_2.mp4" type="video/mp4" />
+			</video>
+		</div>
+
+		<div class="v-item ch-03">
+			<div class="cam-label">CAM 03 - SOUTH ALLEY</div>
+			<video autoplay muted loop>
+				<source src="/video/web_out_{{ report.id }}_3.mp4" type="video/mp4" />
+			</video>
+		</div>
+
+		<div class="v-item ch-04">
+			<div class="cam-label">CAM 04 - THERMAL / INFRARED</div>
+			<video autoplay muted loop>
+				<source src="/video/web_out_{{ report.id }}_4.mp4" type="video/mp4" />
+			</video>
 		</div>
 	</section>
 </main>
+
+<script>
+	// 상단 실시간 시계 업데이트
+    function updateClock() {
+        const now = new Date();
+        document.getElementById('clock').innerText = now.toLocaleString('ko-KR');
+    }
+    setInterval(updateClock, 1000);
+    updateClock();
+</script>
 
 </body>
 </html>
