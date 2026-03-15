@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="ko">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>로그인 - GuardHub</title>
+	<link rel="stylesheet" href="/static/css/login.css">
+</head>
+<body>
+<header class="top">
+	<a class="logo" href="/">가드허브</a>
+</header>
+
+<main class="wrap">
+	<section class="card">
+		<h1 class="title">로그인</h1>
+		<p class="sub">아이디와 비밀번호를 입력해 주세요.</p>
+
+		{% if error %}
+		<p class="error">아이디 또는 비밀번호가 올바르지 않습니다.</p>
+		{% endif %}
+
+		{% if logout %}
+		<p class="info">로그아웃되었습니다.</p>
+		{% endif %}
+
+		<form class="form" method="post" action="/login">
+			<div class="field">
+				<label class="label" for="id">아이디</label>
+				<input class="input" id="id" type="text" name="id" autocomplete="username" required>
+			</div>
+
+			<div class="field">
+				<label class="label" for="password">비밀번호</label>
+				<input class="input" id="password" type="password" name="password" autocomplete="current-password" required>
+			</div>
+
+			<button class="btn btn-primary" type="submit">로그인</button>
+		</form>
+
+		<div class="links">
+			<span>계정이 없으신가요?</span> <a class="link" href="/signup/select">회원가입</a>
+		</div>
+	</section>
+</main>
+</body>
+</html>

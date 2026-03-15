@@ -1,0 +1,163 @@
+:root {
+	--bg: #f6f7f9;
+	--card: #ffffff;
+	--text: #111827;
+	--muted: #6b7280;
+	--line: #e5e7eb;
+	--primary: #111827;
+	--shadow: 0 14px 30px rgba(0, 0, 0, .10);
+	--radius: 16px;
+}
+
+* {
+	box-sizing: border-box;
+}
+
+html, body {
+	height: 100%;
+}
+
+body {
+	margin: 0;
+	font-family: system-ui, "Pretendard", sans-serif;
+	background: var(--bg);
+	color: var(--text);
+}
+
+/* 상단 로고 */
+.top {
+	padding: 22px 28px;
+}
+
+.logo {
+	font-weight: 900;
+	font-size: 22px;
+	color: var(--text);
+	text-decoration: none;
+}
+
+.logo:hover {
+	opacity: .85;
+}
+
+/* 가운데 카드 */
+.wrap {
+	min-height: calc(100vh - 72px);
+	display: grid;
+	place-items: center;
+	padding: 24px;
+}
+
+.card {
+	width: 100%;
+	max-width: 420px;
+	background: var(--card);
+	border: 1px solid var(--line);
+	border-radius: var(--radius);
+	box-shadow: var(--shadow);
+	padding: 26px;
+}
+
+.title {
+	margin: 0 0 6px;
+	font-size: 22px;
+	font-weight: 900;
+}
+
+.sub {
+	margin: 0 0 16px;
+	color: var(--muted);
+	font-size: 14px;
+	line-height: 1.5;
+}
+
+/* 메시지 */
+.error {
+	margin: 0 0 12px;
+	padding: 10px 12px;
+	border-radius: 12px;
+	background: rgba(220, 38, 38, .08);
+	color: #991b1b;
+	font-weight: 700;
+	font-size: 13px;
+}
+
+.info {
+	margin: 0 0 12px;
+	padding: 10px 12px;
+	border-radius: 12px;
+	background: rgba(16, 185, 129, .10);
+	color: #065f46;
+	font-weight: 700;
+	font-size: 13px;
+}
+
+.form {
+	display: flex;
+	flex-direction: column;
+	gap: 12px;
+}
+
+.field {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+}
+
+.label {
+	font-size: 13px;
+	font-weight: 800;
+}
+
+.input {
+	height: 44px;
+	border-radius: 12px;
+	border: 1px solid var(--line);
+	padding: 0 12px;
+	font-size: 14px;
+	outline: none;
+	background: #fff;
+}
+
+.input:focus {
+	border-color: rgba(17, 24, 39, .45);
+	box-shadow: 0 0 0 4px rgba(17, 24, 39, .08);
+}
+
+/* 버튼 */
+.btn {
+	height: 44px;
+	border-radius: 12px;
+	border: 1px solid transparent;
+	font-weight: 900;
+	cursor: pointer;
+	font-size: 14px;
+}
+
+.btn-primary {
+	background: var(--primary);
+	color: #fff;
+}
+
+.btn-primary:hover {
+	opacity: .92;
+}
+
+.links {
+	margin-top: 14px;
+	display: flex;
+	justify-content: center;
+	gap: 6px;
+	font-size: 13px;
+	color: var(--muted);
+}
+
+.link {
+	color: var(--text);
+	font-weight: 900;
+	text-decoration: none;
+}
+
+.link:hover {
+	text-decoration: underline;
+}

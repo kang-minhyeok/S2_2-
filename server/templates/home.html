@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="ko">
+<head>
+	<meta charset="UTF-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+	<title>GuardHub</title>
+	<link rel="stylesheet" href="/static/css/home.css" />
+</head>
+<body>
+<div class="page">
+	<div class="card">
+		<header class="header">
+			<a class="logo" href="/">가드허브</a>
+			<nav class="menu">
+				<a href="/news">알림/소식</a> <a href="/cases">사건조회</a>
+				<a href="/notice">공지사항</a> <a href="/mypage">마이페이지</a>
+			</nav>
+
+			<div class="auth">
+				{% if not user %}
+				<span>
+                        <a href="/login">로그인</a>
+                        <span>/</span>
+                        <a href="/signup/select">회원가입</a>
+                    </span>
+				{% else %}
+				<span>
+					<span style="margin-right: 15px; font-weight: bold; color: #333;">
+						{% if user.role == "ADMIN" %}
+							{{ user.name }}({{ user.affiliation }}) 님 환영합니다
+						{% else %}
+							{{ user.name }} 님 환영합니다
+						{% endif %}
+					</span>
+                        <form action="/logout" method="post" style="display: inline;">
+                            <button type="submit" class="logout-btn">로그아웃</button>
+                        </form>
+                    </span>
+				{% endif %}
+			</div>
+		</header>
+
+		<section class="banner"></section>
+
+		<section class="quick">
+			<a class="quick-item" href="/info">정보 등록</a>
+			<a class="quick-item" href="/admin">관계자용 자료</a>
+		</section>
+	</div>
+</div>
+</body>
+</html>

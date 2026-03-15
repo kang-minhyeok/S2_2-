@@ -1,0 +1,189 @@
+<!doctype html>
+<html lang="ko">
+<head>
+	<meta charset="UTF-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+	<title>Safe-Link 통합 관제 - No.{{ report.id }}</title>
+	<link rel="stylesheet" href="/static/css/admin_cctv.css" />
+</head>
+<body>
+
+<header class="top">
+	<a class="logo" href="/">가드 허브</a>
+	<div class="sys-status">
+		<span id="clock"></span>
+	</div>
+</header>
+
+<main class="wrap">
+	<div class="head-info">
+		<div>
+			<h2 class="page-title"> 지능형 입체 관제 모드</h2>
+			<div style="color:var(--text-muted); margin-top:8px; font-size:1rem;">
+				<span>신고번호: #{{ report.id }}</span> |
+				<span style="margin-left: 5px;">타겟: <b style="color:var(--primary-color)">{{ report.content }}</b></span> |
+				<span style="margin-left: 5px;">위치: <b style="color:var(--primary-color)">{{ report.location }}</b></span> |
+				<span style="margin-left: 5px;">신고시간: <b style="color:var(--primary-color)">{{ report.created_at.strftime('%Y-%m-%d %H:%M') }}</b></span>
+			</div>
+		</div>
+		<div class="actions">
+			<a class="btn btn-secondary" href="/admin/{{ report.id }}">상세보기</a>
+			<a class="btn" href="/admin">목록으로</a>
+		</div>
+	</div>
+
+	<div class="container">
+		<section class="cctv-grid">
+			<div class="v-item main">
+				<div class="cam-label">CAM 01 - AI ANALYSIS</div>
+				<video autoplay muted controls loop>
+					<source src="/static/outputs/report_{{ report.id }}/web_out_{{ report.id }}_1.mp4" type="video/mp4">
+				</video>
+			</div>
+			<div class="v-item">
+				<div class="cam-label">CAM 02 - NORTH STREET</div>
+				<video autoplay muted loop>
+					<source src="/static/outputs/report_{{ report.id }}/web_out_{{ report.id }}_2.mp4" type="video/mp4">
+				</video>
+			</div>
+			<div class="v-item">
+				<div class="cam-label">CAM 03 - SOUTH ALLEY</div>
+				<video autoplay muted loop>
+					<source src="/static/outputs/report_{{ report.id }}/web_out_{{ report.id }}_3.mp4" type="video/mp4">
+				</video>
+			</div>
+			<div class="v-item">
+				<div class="cam-label">CAM 04 - OVERVIEW</div>
+				<video autoplay muted loop>
+					<source src="/static/outputs/report_{{ report.id }}/web_out_{{ report.id }}_4.mp4" type="video/mp4">
+				</video>
+			</div>
+		</section>
+
+		<aside class="sidebar">
+			<div class="map-panel">
+				<div class="panel-header">GPS LOCATION</div>
+				<div id="map-placeholder"></div>
+			</div>
+
+			<div class="log-panel">
+				<div class="panel-header">REAL-TIME SYSTEM LOG</div>
+				<div id="log-container">
+					<div class="log-item"><span class="log-time">...</span>[SYSTEM] Connecting to analysis server...</div>
+				</div>
+			</div>
+		</aside>
+	</div>
+</main>
+
+<script type="text/javascript" src="https://dapi.kakao.com/v2/maps/sdk.js?appkey=3dfe07ab6fd2cb4a88cccba204e2dec9&libraries=services&autoload=false"></script>
+
+<script>
+	// 1. 카카오 지도 초기화 로직 (좌표/주소 자동 판별 기능 유지)
+	kakao.maps.load(function() {
+		const mapContainer = document.getElementById('map-placeholder');
+		const map = new kakao.maps.Map(mapContainer, {
+			center: new kakao.maps.LatLng(37.5665, 126.9780), // 기본 좌표 (서울시청)
+			level: 3
+		});
+
+		const locationData = "{{ report.location }}".trim();
+
+		function addMapLog(msg, isError = false) {
+			const logContainer = document.getElementById('log-container');
+			const newLog = document.createElement('div');
+			newLog.className = 'log-item';
+			const color = isError ? "#dc3545" : "var(--accent-color)";
+			newLog.innerHTML = `<span class="log-time">${new Date().toLocaleTimeString('en-GB')}</span> <span style="color:${color}; font-weight:bold;">[MAP] ${msg}</span>`;
+			if(logContainer) {
+				logContainer.appendChild(newLog);
+				logContainer.scrollTop = logContainer.scrollHeight;
+			}
+		}
+
+		if (!locationData || locationData === "None") {
+			addMapLog("Location data is empty.", true);
+			return;
+		}
+
+		const coordRegex = /^[-+]?([1-8]?\d(\.\d+)?|90(\.0+)?),\s*[-+]?(180(\.0+)?|((1[0-7]\d)|([1-9]?\d))(\.\d+)?)$/;
+
+		if (coordRegex.test(locationData)) {
+			const [lat, lng] = locationData.split(',').map(s => parseFloat(s.trim()));
+			const coords = new kakao.maps.LatLng(lat, lng);
+			new kakao.maps.Marker({ map: map, position: coords });
+			map.setCenter(coords);
+			addMapLog(`Coordinate recognized: ${lat.toFixed(4)}, ${lng.toFixed(4)}`);
+		} else {
+			const geocoder = new kakao.maps.services.Geocoder();
+			geocoder.addressSearch(locationData, function(result, status) {
+				if (status === kakao.maps.services.Status.OK) {
+					const coords = new kakao.maps.LatLng(result[0].y, result[0].x);
+					new kakao.maps.Marker({ map: map, position: coords });
+					map.setCenter(coords);
+					addMapLog(`Address converted: ${locationData}`);
+				} else {
+					addMapLog(`Geocode failed: ${locationData} (Reason: ${status})`, true);
+				}
+			});
+		}
+	});
+
+	// 2. 실시간 시계 업데이트
+	function updateClock() {
+		const now = new Date();
+		const clockElement = document.getElementById('clock');
+		if (clockElement) {
+			clockElement.innerText = now.toLocaleString('ko-KR', {
+                year: 'numeric', month: '2-digit', day: '2-digit',
+                hour: '2-digit', minute: '2-digit', second: '2-digit'
+            });
+		}
+	}
+	setInterval(updateClock, 1000);
+	updateClock();
+
+	// 3. WebSocket 실시간 로그 수신
+	const reportId = "{{ report.id }}";
+	const socket = new WebSocket(`ws://${window.location.host}/ws/${reportId}`);
+	const logContainer = document.getElementById('log-container');
+
+	socket.onmessage = function(event) {
+		const message = event.data;
+		const newLog = document.createElement('div');
+		newLog.className = 'log-item';
+		const timestamp = new Date().toLocaleTimeString('en-GB');
+
+		if (message.startsWith("VIDEO_READY_CH:")) {
+			const chNumber = message.split(":")[1];
+			const targetVideo = document.querySelectorAll('video')[chNumber - 1];
+			if (targetVideo) {
+				const source = targetVideo.querySelector('source');
+				if (source) {
+					const baseSrc = source.src.split('?')[0];
+					source.src = `${baseSrc}?t=${new Date().getTime()}`;
+					targetVideo.load();
+					targetVideo.play().catch(() => {});
+				}
+			}
+			newLog.innerHTML = `<span class="log-time">${timestamp}</span> <span style="color:var(--accent-color); font-weight:bold;">[SYSTEM] CAM 0${chNumber} video ready</span>`;
+		}
+		else if (message.includes("MATCH")) {
+			newLog.innerHTML = `<span class="log-time">${timestamp}</span> <span style="color:#dc3545; font-weight:bold;">${message}</span>`;
+		}
+		else if (!message.startsWith("[MAP]")) { // 지도 로그는 중복 추가 방지
+			newLog.innerHTML = `<span class="log-time">${timestamp}</span> [AI] ${message}`;
+		}
+
+		if (logContainer && newLog.innerHTML) {
+			logContainer.appendChild(newLog);
+			logContainer.scrollTop = logContainer.scrollHeight;
+		}
+	};
+
+	socket.onopen = () => console.log("✅ WebSocket Connected (Report ID: " + reportId + ")");
+	socket.onerror = (err) => console.error("❌ WebSocket Error:", err);
+</script>
+
+</body>
+</html>

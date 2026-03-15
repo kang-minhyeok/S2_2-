@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title th:text="|관계자용 자료 - ${doc.title}|">관계자용 자료 - GuardHub</title>
+<link rel="stylesheet" href="/static/css/admin_detail.css" /><link rel="stylesheet" href="/static/css/home.css">
+</head>
+<body>
+
+	<header class="top">
+		<a class="logo" href="/">가드허브</a>
+	</header>
+
+	<main class="wrap">
+		<section class="detail">
+			<h2 class="title">관계자용 자료</h2>
+			<div class="table">
+				<div class="row">
+					<div class="cell label">등록일</div>
+					<div class="cell value">{{ report.created_at.strftime('%Y-%m-%d') if report.created_at else '' }}</div>
+				</div>
+				<div class="row">
+					<div class="cell label">작성자</div>
+					<div class="cell value">{{ report.name }}</div>
+				</div>
+				<div class="row big">
+					<div class="cell label">내용</div>
+					<div class="cell value">{{ report.content }}</div>
+				</div>
+			</div>
+
+			<div class="actions">
+				<a class="btn" href="/admin">목록으로</a>
+				<a class="btn" href="/admin/cctv/{{ report.id }}">CCTV 자료</a>
+			</div>
+		</section>
+	</main>
+
+</body>
+</html>

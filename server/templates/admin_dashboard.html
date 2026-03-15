@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="ko">
+<head>
+	<meta charset="UTF-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+	<title>관계자용 자료 - GuardHub</title>
+	<link rel="stylesheet" href="/static/css/admin.css" />
+</head>
+<body>
+
+<header class="top">
+	<a class="logo" href="/" aria-label="홈으로 이동">가드허브</a>
+</header>
+
+<main class="wrap">
+	<h2 class="page-title">실시간 안전 신고 내역 (Safe-Link)</h2>
+
+	<section class="list">
+		<div class="table">
+
+			<div class="row header">
+				<div class="cell col-no">번호</div>
+				<div class="cell col-title">신고 내용 (분석 결과)</div>
+				<div class="cell col-date">등록일</div>
+				<div class="cell col-writer">신고자</div>
+			</div>
+
+			{% if not reports %}
+			<div class="row empty">
+				<div class="cell col-no">-</div>
+				<div class="cell col-title">등록된 신고 내역이 없습니다.</div>
+				<div class="cell col-date">-</div>
+				<div class="cell col-writer">-</div>
+			</div>
+			{% endif %}
+
+			{% for report in reports %}
+			<div class="row">
+				<div class="cell col-no">{{ report.id }}</div>
+
+				<div class="cell col-title">
+					<a class="title-link" href="/admin/{{ report.id }}">
+						{{ report.content if report.content else "내용 없음" }}
+					</a>
+					{% if report.video_path %} 🎥 {% endif %}
+				</div>
+
+				<div class="cell col-date">{{ report.created_at.strftime('%Y-%m-%d %H:%M') }}</div>
+
+				<div class="cell col-writer">{{ report.name }}</div>
+			</div>
+			{% endfor %}
+
+		</div>
+	</section>
+
+	<nav class="pager" aria-label="페이지 네비게이션">
+		<a class="btn" href="#">&lt;&lt;</a>
+		<a class="btn" href="#">&lt;</a>
+		<a class="num on" href="#">1</a>
+		<a class="btn" href="#">&gt;</a>
+		<a class="btn" href="#">&gt;&gt;</a>
+	</nav>
+
+</main>
+</body>
+</html>
