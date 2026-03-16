@@ -247,17 +247,50 @@ def detect_color_name(roi):
     h, s, v = int(hsv_pixel[0]), int(hsv_pixel[1]), int(hsv_pixel[2])
 
 
+    이미지 분석 결과를 보니 Purple(보라)과 Blue(파랑), 그리고 Pink(분홍)와 Red(빨강) 사이의 경계가 현재 서버의 영상 톤에서 여전히 겹치고 있네요.
+
+CCTV 카메라 센서의 특성상 어두운 보라는 파란색으로 튀기 쉽고, 아주 밝은 분홍은 빨간색으로 인식될 확률이 높습니다 [cite: 2026-03-15]. 이를 해결하기 위해 색상(Hue)의 경계값을 더 세밀하게 조정하고, 특히 Red의 판정 기준을 더 까다롭게 만든 최종 코드를 보내드립니다.
+
+🛠️ [최종 튜닝] 보라/분홍 오인 해결용 detect_color_name 전문
+이 코드는 보라색의 범위를 아래(파랑 쪽)로 더 넓히고, 채도가 아주 높은 핑크가 레드로 오판되지 않도록 로직을 강화했습니다 [cite: 2026-03-15].
+
+Python
+def detect_color_name(roi):
+    if roi is None or roi.size == 0:
+        return "Unknown"
+
+    # 1. 대표 색상 추출 (K-means)
+    small_roi = cv2.resize(roi, (24, 24))
+    pixels = small_roi.reshape((-1, 3))
+    pixels = np.float32(pixels)
+
+    criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 10, 1.0)
+    _, labels, centers = cv2.kmeans(pixels, 2, None, criteria, 10, cv2.KMEANS_RANDOM_CENTERS)
+
+    counts = np.bincount(labels.flatten())
+    dominant_color_bgr = centers[np.argmax(counts)]
+
+    # 2. BGR -> HSV 변환
+    hsv_pixel = cv2.cvtColor(np.uint8([[dominant_color_bgr]]), cv2.COLOR_BGR2HSV)[0][0]
+    h, s, v = int(hsv_pixel[0]), int(hsv_pixel[1]), int(hsv_pixel[2])
+
+    # 3. 색상 판별 로직
+
+
     if v < 50: return "Black"
-    if s < 30 and v > 190: return "White"
+    if s < 35 and v > 190: return "White"
     if s < 60 and v < 200: return "Gray"
 
+    if (0 <= h < 8 or 172 <= h <= 180):
+        if s > 160 and v > 120:
+            return "Red"
+        elif s > 50 and v > 130:
+            return "Pink"
+        else:
+            return "Brown"
 
-    if (0 <= h < 10 or 165 <= h <= 180):
-        if s > 130 and v > 100: return "Red"
-        elif s > 50 and v > 150: return "Pink"
-        else: return "Brown"
 
-    elif 10 <= h < 38:
+    elif 8 <= h < 38:
         if h >= 18: return "Yellow"
         else:
             if s > 100 and v > 100: return "Orange"
@@ -266,23 +299,22 @@ def detect_color_name(roi):
     elif 38 <= h < 85: return "Green"
 
 
-    elif 85 <= h < 110:
+    elif 85 <= h < 105:
         if s > 95: return "Skyblue"
         else: return "Gray"
 
 
-    elif 110 <= h < 130:
+    elif 105 <= h < 125:
         if s > 80 and v > 60: return "Blue"
         else: return "Navy"
 
 
-    elif 130 <= h < 150:
-        if s > 60: return "Purple"
+    elif 125 <= h < 150:
+        if s > 50: return "Purple"
         else: return "Gray"
 
-
-    elif 150 <= h < 165:
-        if s > 50: return "Pink"
+    elif 150 <= h < 172:
+        if s > 40: return "Pink"
         else: return "Gray"
 
     return "Unknown"
