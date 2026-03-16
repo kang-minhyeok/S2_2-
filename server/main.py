@@ -229,32 +229,7 @@ def extract_color_with_llm(content: str) -> dict:
 2. BGR->HSV로 변경
 3. 변경된 HSV값으로 색상을 판별해 return
 """
-def detect_color_name(roi):
-    if roi is None or roi.size == 0:
-        return "Unknown"
 
-    small_roi = cv2.resize(roi, (24, 24))
-    pixels = small_roi.reshape((-1, 3))
-    pixels = np.float32(pixels)
-
-    criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 10, 1.0)
-    _, labels, centers = cv2.kmeans(pixels, 2, None, criteria, 10, cv2.KMEANS_RANDOM_CENTERS)
-
-    counts = np.bincount(labels.flatten())
-    dominant_color_bgr = centers[np.argmax(counts)]
-
-    hsv_pixel = cv2.cvtColor(np.uint8([[dominant_color_bgr]]), cv2.COLOR_BGR2HSV)[0][0]
-    h, s, v = int(hsv_pixel[0]), int(hsv_pixel[1]), int(hsv_pixel[2])
-
-
-    이미지 분석 결과를 보니 Purple(보라)과 Blue(파랑), 그리고 Pink(분홍)와 Red(빨강) 사이의 경계가 현재 서버의 영상 톤에서 여전히 겹치고 있네요.
-
-CCTV 카메라 센서의 특성상 어두운 보라는 파란색으로 튀기 쉽고, 아주 밝은 분홍은 빨간색으로 인식될 확률이 높습니다 [cite: 2026-03-15]. 이를 해결하기 위해 색상(Hue)의 경계값을 더 세밀하게 조정하고, 특히 Red의 판정 기준을 더 까다롭게 만든 최종 코드를 보내드립니다.
-
-🛠️ [최종 튜닝] 보라/분홍 오인 해결용 detect_color_name 전문
-이 코드는 보라색의 범위를 아래(파랑 쪽)로 더 넓히고, 채도가 아주 높은 핑크가 레드로 오판되지 않도록 로직을 강화했습니다 [cite: 2026-03-15].
-
-Python
 def detect_color_name(roi):
     if roi is None or roi.size == 0:
         return "Unknown"
