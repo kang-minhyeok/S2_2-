@@ -248,37 +248,42 @@ def detect_color_name(roi):
 
 
     if v < 50: return "Black"
-    if s < 35 and v > 190: return "White"
-    if s < 45 and v < 190: return "Gray"
+    if s < 30 and v > 190: return "White"
+    if s < 60 and v < 200: return "Gray"
 
 
     if (0 <= h < 10 or 165 <= h <= 180):
-        if s > 130 and v > 100:
-            return "Red"
-        elif s > 50 and v > 150:
-            return "Pink"
-        else:
-            return "Brown"
+        if s > 130 and v > 100: return "Red"
+        elif s > 50 and v > 150: return "Pink"
+        else: return "Brown"
 
     elif 10 <= h < 38:
-        if h >= 18:
-            return "Yellow"
+        if h >= 18: return "Yellow"
         else:
             if s > 100 and v > 100: return "Orange"
             else: return "Brown"
 
-    elif 140 <= h < 165:
-        if s > 50: return "Pink"
+    elif 38 <= h < 85: return "Green"
+
+
+    elif 85 <= h < 110:
+        if s > 95: return "Skyblue"
         else: return "Gray"
 
-    elif 38 <= h < 85: return "Green"
-    elif 85 <= h < 110:
-        if s > 100: return "Skyblue"
-        else: return "Blue"
+
     elif 110 <= h < 130:
-        if s > 100 and v > 70: return "Blue"
+        if s > 80 and v > 60: return "Blue"
         else: return "Navy"
-    elif 130 <= h < 140: return "Purple"
+
+
+    elif 130 <= h < 150:
+        if s > 60: return "Purple"
+        else: return "Gray"
+
+
+    elif 150 <= h < 165:
+        if s > 50: return "Pink"
+        else: return "Gray"
 
     return "Unknown"
 
