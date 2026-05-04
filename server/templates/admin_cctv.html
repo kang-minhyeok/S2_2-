@@ -79,13 +79,51 @@
 <script type="text/javascript" src="http://dapi.kakao.com/v2/maps/sdk.js?appkey=3dfe07ab6fd2cb4a88cccba204e2dec9&libraries=services&autoload=false"></script>
 
 <script>
-	// 1. 카카오 지도 초기화 로직 (좌표/주소 자동 판별 기능 유지)
-	kakao.maps.load(function() {
+	// 1. 전역 변수 설정
+	let map;
+	let searchCircle = null;
+	let animationId = null;
+	let cameraLocations = {};
+	let markerNormalImg = null;
+	let markerActiveImg = null;
+	let trackingPolyline = null; // 궤적 선 전역 변수
+
+	// 2. 카카오 지도 초기화 및 카메라 마커 생성
+	kakao.maps.load(async function() {
+		markerNormalImg = new kakao.maps.MarkerImage(
+			'https://t1.daumcdn.net/localimg/localimages/07/mapapidoc/markerStar.png',
+			new kakao.maps.Size(24, 35)
+		);
+		markerActiveImg = new kakao.maps.MarkerImage(
+			'https://t1.daumcdn.net/localimg/localimages/07/mapapidoc/marker_red.png',
+			new kakao.maps.Size(34, 45)
+		);
+
 		const mapContainer = document.getElementById('map-placeholder');
-		const map = new kakao.maps.Map(mapContainer, {
-			center: new kakao.maps.LatLng(37.3396, 126.7352), // 기본 좌표
+		map = new kakao.maps.Map(mapContainer, {
+			center: new kakao.maps.LatLng(37.3396, 126.7352),
 			level: 3
 		});
+
+		try {
+			const resp = await fetch('/api/camera-locations');
+			cameraLocations = await resp.json();
+
+			Object.keys(cameraLocations).forEach(camName => {
+				const pos = cameraLocations[camName];
+				const markerPosition = new kakao.maps.LatLng(pos.lat, pos.lon);
+
+				const marker = new kakao.maps.Marker({
+					position: markerPosition,
+					title: camName,
+					image: markerNormalImg
+				});
+				marker.setMap(map);
+				cameraLocations[camName].marker = marker;
+			});
+		} catch (e) {
+			console.error("카메라 위치 정보를 불러오지 못했습니다.", e);
+		}
 
 		const locationData = "{{ report.location }}".trim();
 
@@ -100,6 +138,8 @@
 				logContainer.scrollTop = logContainer.scrollHeight;
 			}
 		}
+
+		window.addMapLog = addMapLog;
 
 		if (!locationData || locationData === "None") {
 			addMapLog("Location data is empty.", true);
@@ -127,9 +167,66 @@
 				}
 			});
 		}
+
+        // 새로고침 시 과거 궤적이 있다면 바로 그려줌
+	    drawTrackingPath();
 	});
 
-	// 2. 실시간 시계 업데이트
+	// 3. 거리 계산 함수
+	function getDistance(p1, p2) {
+		const R = 6371000;
+		const dLat = (p2.lat - p1.lat) * Math.PI / 180;
+		const dLon = (p2.lon - p1.lon) * Math.PI / 180;
+		const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+				  Math.cos(p1.lat * Math.PI / 180) * Math.cos(p2.lat * Math.PI / 180) *
+				  Math.sin(dLon/2) * Math.sin(dLon/2);
+		return R * (2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)));
+	}
+
+	// [수정] 궤적 그리기 함수 (현재 매칭된 카메라 위치를 강제로 이어주는 로직 포함)
+	async function drawTrackingPath(currentCam = null) {
+		try {
+			const res = await fetch(`/api/tracking-path/${reportId}`);
+			const data = await res.json();
+
+			if (data.status === "success") {
+                let pathList = data.path;
+
+                // 타겟이 현재 있는 카메라(아직 이탈 전이라 DB에 없음)를 궤적에 강제 추가
+                if (currentCam && cameraLocations[currentCam]) {
+                    if (pathList.length === 0 || pathList[pathList.length - 1].cam_name !== currentCam) {
+                        pathList.push({
+                            lat: cameraLocations[currentCam].lat,
+                            lon: cameraLocations[currentCam].lon,
+                            cam_name: currentCam
+                        });
+                    }
+                }
+
+                // 점이 2개 이상일 때만 선 그림
+				if (pathList.length > 1) {
+					const linePath = pathList.map(p => new kakao.maps.LatLng(p.lat, p.lon));
+
+					if (trackingPolyline) {
+						trackingPolyline.setPath(linePath);
+					} else {
+						trackingPolyline = new kakao.maps.Polyline({
+							path: linePath,
+							strokeWeight: 6,
+							strokeColor: '#FF0000',
+							strokeOpacity: 0.8,
+							strokeStyle: 'solid' // 궤적이 잘 보이게 실선으로 변경
+						});
+						trackingPolyline.setMap(map);
+					}
+				}
+			}
+		} catch(e) {
+			console.error("이동 궤적 로드 실패", e);
+		}
+	}
+
+	// 4. 시계 업데이트
 	function updateClock() {
 		const now = new Date();
 		const clockElement = document.getElementById('clock');
@@ -143,7 +240,61 @@
 	setInterval(updateClock, 1000);
 	updateClock();
 
-	// 3. WebSocket 실시간 로그 수신
+	// 5. 수색 반경 확장 애니메이션
+	function startSearchRadius(eventData) {
+		if (searchCircle) searchCircle.setMap(null);
+		if (animationId) cancelAnimationFrame(animationId);
+
+		const startPos = cameraLocations[eventData.from_cam];
+		if (!startPos) return;
+
+		const exitTime = new Date(eventData.exit_time);
+		const speed = Math.sqrt(Math.pow(eventData.vx, 2) + Math.pow(eventData.vy, 2)) * 0.3;
+
+		searchCircle = new kakao.maps.Circle({
+			center: new kakao.maps.LatLng(startPos.lat, startPos.lon),
+			radius: 0,
+			strokeWeight: 2,
+			strokeColor: '#FF0000',
+			strokeOpacity: 0.8,
+			fillColor: '#FF0000',
+			fillOpacity: 0.2
+		});
+		searchCircle.setMap(map);
+
+		function animate() {
+			const now = new Date();
+			const elapsed = (now - exitTime) / 1000;
+			const currentRadius = (speed * elapsed) + 15;
+
+			searchCircle.setRadius(currentRadius);
+
+			Object.keys(cameraLocations).forEach(camName => {
+				const cam = cameraLocations[camName];
+				if (camName === eventData.from_cam) return;
+
+				const dist = getDistance(startPos, cam);
+
+				if (dist <= currentRadius) {
+					if (cam.marker.getImage() !== markerActiveImg) {
+						cam.marker.setImage(markerActiveImg);
+						cam.marker.setZIndex(10);
+						if(window.addMapLog) window.addMapLog(`${camName} 반경 내 진입 (거리: ${Math.round(dist)}m)`);
+					}
+				} else {
+					if (cam.marker.getImage() !== markerNormalImg) {
+						cam.marker.setImage(markerNormalImg);
+						cam.marker.setZIndex(1);
+					}
+				}
+			});
+
+			animationId = requestAnimationFrame(animate);
+		}
+		animate();
+	}
+
+	// 6. WebSocket 실시간 로그 및 이벤트 수신
 	const reportId = "{{ report.id }}";
 	const socket = new WebSocket(`ws://${window.location.host}/ws/${reportId}`);
 	const logContainer = document.getElementById('log-container');
@@ -170,9 +321,37 @@
 		}
 		else if (message.includes("MATCH")) {
 			newLog.innerHTML = `<span class="log-time">${timestamp}</span> <span style="color:#dc3545; font-weight:bold;">${message}</span>`;
+
+            // [수정] ReID 재식별 성공 시, 궤적을 잇고 수색 반경(원)은 끕니다.
+            if (message.includes("ReID MATCH")) {
+                if (searchCircle) searchCircle.setMap(null); // 원 숨기기
+                if (animationId) cancelAnimationFrame(animationId); // 애니메이션 정지
+
+                // 로그에서 "CAM 04" 등 카메라 이름 추출 후 선 긋기
+                const camMatch = message.match(/CAM 0\d/);
+                if (camMatch) {
+                    const matchedCam = camMatch[0].replace(' ', '_'); // "CAM_04" 포맷으로 변경
+                    drawTrackingPath(matchedCam);
+                }
+            }
 		}
-		else if (!message.startsWith("[MAP]")) { // 지도 로그는 중복 추가 방지
+		else if (!message.startsWith("[MAP]")) {
 			newLog.innerHTML = `<span class="log-time">${timestamp}</span> [AI] ${message}`;
+
+			if (message.includes("[EXIT]") || message.includes("[HANDOVER]")) {
+				fetch(`/api/latest-handover/${reportId}`)
+					.then(r => r.json())
+					.then(res => {
+						if (res.status === "success") {
+							startSearchRadius(res);
+							if(window.addMapLog) window.addMapLog(`수색 반경 확장 시작: ${res.from_cam}`);
+						}
+					})
+					.catch(err => console.error("API 요청 실패", err));
+
+				// 일반 이탈 시에도 과거 궤적 업데이트
+				drawTrackingPath();
+			}
 		}
 
 		if (logContainer && newLog.innerHTML) {
