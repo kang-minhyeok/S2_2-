@@ -264,8 +264,8 @@
 
 		function animate() {
 			const now = new Date();
-			const elapsed = (now - exitTime) / 1000;
-			const currentRadius = (speed * elapsed) + 15;
+			const elapsed = (now.getTime() - exitTime.getTime()) / 1000;
+			const currentRadius = (speed * Math.max(0, elapsed)) + 15;
 
 			searchCircle.setRadius(currentRadius);
 

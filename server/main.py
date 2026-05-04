@@ -1110,7 +1110,7 @@ async def get_latest_handover(report_id: int, db: Session = Depends(get_db)):
         "from_cam": event.from_cam,
         "vx": event.vx,
         "vy": event.vy,
-        "exit_time": event.exit_time.isoformat()
+        "exit_time": event.exit_time.isoformat() + "Z"
     }
 
 
