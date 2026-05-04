@@ -1113,6 +1113,7 @@ async def get_latest_handover(report_id: int, db: Session = Depends(get_db)):
         "exit_time": event.exit_time.isoformat()
     }
 
+
 # 타겟의 전체 이동 궤적 좌표를 가져오는 API
 @app.get("/api/tracking-path/{report_id}")
 async def get_tracking_path(report_id: int, db: Session = Depends(get_db)):
