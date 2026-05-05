@@ -653,9 +653,34 @@ def process_video_analysis(report_id: int, content: str = None):
 
                                 if curr_feat_str:
                                     reid_score = compute_cosine_similarity(target_saved_feat, curr_feat_str)
-                                    # 유사도가 75% 이상이면 동일인으로 확정
+
+                                    # reID 유사도가 75% 이상일시
                                     if reid_score >= 0.75:
-                                        is_reid_matched = True
+                                        curr_cam_name = f"CAM_0{i}"
+
+                                        # DB에서 이전 카메라와 현재 카메라의 위치 정보(lat, lon) 가져오기
+                                        prev_cam = db.query(CameraTopology).filter(CameraTopology.cam_name == latest_handover.from_cam).first()
+                                        curr_cam = db.query(CameraTopology).filter(CameraTopology.cam_name == curr_cam_name).first()
+
+                                        if prev_cam and curr_cam and latest_handover.exit_time:
+                                            # 두 카메라 간의 실제 물리적 거리(m) 계산
+                                            dist = get_real_distance(prev_cam.lat, prev_cam.lon, curr_cam.lat, curr_cam.lon)
+
+                                            # 경과 시간(초) 계산: 현재 분석 시간 - 과거 이탈 시간
+                                            time_elapsed = (datetime.datetime.now() - latest_handover.exit_time).total_seconds()
+                                            time_elapsed = max(time_elapsed, 0.1)
+
+                                            # 해당 거리와 시간 동안의 이동 속도(m/s)
+                                            required_speed = dist / time_elapsed
+
+                                            # 인간의 이동 한계 속도 판별
+                                            if required_speed <= 15.0:
+                                                is_reid_matched = True
+                                            else:
+                                                is_reid_matched = False
+                                        else:
+                                            # 좌표 정보가 DB에 누락된 경우 일단 매칭 허용 (예외)
+                                            is_reid_matched = True
 
                             if is_target and is_exiting and not prev.get("ex_sent") and frame_count > 10:
                                 # 15장 이미지를 병합해 마스터 지문 생성
@@ -1150,7 +1175,7 @@ def init_camera_topology():
         CameraTopology(cam_name="CAM_01", lat=37.34000, lon=126.73300), # 메인 도로
         CameraTopology(cam_name="CAM_02", lat=37.34045, lon=126.73345), # 북쪽 거리 (약 60m 거리)
         CameraTopology(cam_name="CAM_03", lat=37.33950, lon=126.73250), # 남쪽 골목 (약 70m 거리)
-        CameraTopology(cam_name="CAM_04", lat=37.34045, lon=126.73400)  # 외곽 뷰 (약 140m 거리)
+        CameraTopology(cam_name="CAM_04", lat=37.34100, lon=126.73400)  # 외곽 뷰 (약 140m 거리)
     ]
     db.add_all(cams)
     db.commit()
