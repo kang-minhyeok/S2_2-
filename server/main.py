@@ -1,35 +1,35 @@
-import cv2
-import os
-import numpy as np
-from numpy.linalg import norm
-import time
-import torch
-import datetime
-from collections import deque, Counter
-from fastapi import FastAPI, File, UploadFile, Query, BackgroundTasks, Depends, Request, Form,HTTPException, Response
-from fastapi.responses import FileResponse
-from fastapi.responses import RedirectResponse
-from fastapi.responses import HTMLResponse
-from fastapi.staticfiles import StaticFiles
-from fastapi.templating import Jinja2Templates
-from ultralytics import YOLO
-from dotenv import load_dotenv
-from sqlalchemy import create_engine, Column, Integer, String, DateTime, Float
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker
-from sqlalchemy.orm import Session
-from passlib.context import CryptContext
-from pydantic import BaseModel
-import subprocess
-import google.generativeai as genai
-from fastapi import WebSocket, WebSocketDisconnect
 import asyncio
+import cv2
+import datetime
+import google.generativeai as genai
 import json
 import math
-from torchvision import transforms
+import numpy as np
+import os
+import subprocess
+import time
+import torch
 import torchreid
+from collections import deque, Counter
+from dotenv import load_dotenv
+from fastapi import FastAPI, File, UploadFile, Query, BackgroundTasks, Depends, Request, Form, HTTPException, Response
+from fastapi import WebSocket, WebSocketDisconnect
+from fastapi.responses import FileResponse
+from fastapi.responses import HTMLResponse
+from fastapi.responses import RedirectResponse
+from fastapi.staticfiles import StaticFiles
+from fastapi.templating import Jinja2Templates
+from numpy.linalg import norm
+from passlib.context import CryptContext
+from pydantic import BaseModel
+from sqlalchemy import create_engine, Column, Integer, String, DateTime, Float
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import Session
+from sqlalchemy.orm import sessionmaker
+from torchvision import transforms
+from ultralytics import YOLO
 
-# ReID 모델 로드 및 전처리 설정
+# ReID 모델 로드osnet 및 전처리 설정
 reid_device = 'cuda' if torch.cuda.is_available() else 'cpu'
 reid_model = torchreid.models.build_model(name='osnet_x1_0', num_classes=1000, pretrained=True).to(reid_device)
 reid_model.eval()
@@ -41,46 +41,8 @@ reid_transform = transforms.Compose([
     transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
 ])
 
-# 1. 두 위경도 좌표 사이의 실제 물리적 거리(미터)를 구하는 공식 (Haversine)
-def get_real_distance(lat1, lon1, lat2, lon2):
-    R = 6371000 # 지구 반지름 (m)
-    phi1, phi2 = math.radians(lat1), math.radians(lat2)
-    dphi = math.radians(lat2 - lat1)
-    dlambda = math.radians(lon2 - lon1)
 
-    a = math.sin(dphi/2)**2 + math.cos(phi1)*math.cos(phi2)*math.sin(dlambda/2)**2
-    c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
-    return R * c # 미터(m) 반환
 
-# 2. 시간에 따른 활동 반경을 계산하고, 그 안의 CCTV를 찾아내는 함수
-def get_cameras_in_search_radius(db: Session, from_cam_name: str, vx: float, vy: float, elapsed_seconds: float):
-    start_cam = db.query(CameraTopology).filter(CameraTopology.cam_name == from_cam_name).first()
-    if not start_cam:
-        return []
-
-    # 픽셀 속도 벡터의 크기(픽셀/프레임)를 실제 이동 속도(m/s)로 변환하는 계수
-    # (카메라 화각, 높이에 따라 튜닝 필요. 임시로 0.3 적용)
-    pixel_speed = math.sqrt(vx**2 + vy**2)
-    real_speed_mps = pixel_speed * 0.3
-
-    # 만약 객체가 멈춰서 나갔다면 최소한의 도보 속도(1.2m/s) 가정
-    if real_speed_mps < 0.5:
-        real_speed_mps = 1.2
-
-        # 현재 예상되는 활동 반경 (거리 = 속력 * 시간)
-    # 최소 오차범위(Margin) 15m를 더해줍니다.
-    current_radius_m = (real_speed_mps * elapsed_seconds) + 15.0
-
-    activated_cams = []
-    all_cams = db.query(CameraTopology).filter(CameraTopology.cam_name != from_cam_name).all()
-
-    for cam in all_cams:
-        dist = get_real_distance(start_cam.lat, start_cam.lon, cam.lat, cam.lon)
-        # 카메라가 수색 반경 안으로 들어왔다면 활성화 목록에 추가
-        if dist <= current_radius_m:
-            activated_cams.append({"cam_name": cam.cam_name, "distance": round(dist, 1)})
-
-    return activated_cams
 
 
 # 현재 폴더의 .env 읽기
@@ -230,10 +192,10 @@ class HandoverEvent(Base):
 class CameraTopology(Base):
     __tablename__ = "camera_topology"
     id = Column(Integer, primary_key=True, index=True)
-    cam_name = Column(String(50), unique=True, nullable=False) # 예: CAM_01
+    cam_name = Column(String(50), unique=True, nullable=False)
     lat = Column(Float, nullable=False) # 위도 (Latitude)
     lon = Column(Float, nullable=False) # 경도 (Longitude)
-    fov_angle = Column(Float, nullable=True) # 카메라가 바라보는 방위각 (선택)
+    fov_angle = Column(Float, nullable=True) # 카메라가 바라보는 방위각 (추후)
 
 
 # 테이블 자동 생성 (DB 탭에서 확인 가능)
@@ -334,6 +296,8 @@ def compute_cosine_similarity(feat1_json, feat2_json):
     except Exception as e:
         print(f" [ReID 비교 에러] {e}")
         return 0.0
+
+
 """
 표준 Hue 범위 기반 색상 판별 로직
 1. ROI 내 대표 색상을 판단(K-means)
@@ -419,12 +383,52 @@ def get_smoothed_color(obj_id, new_color):
     return Counter(color_buffer[obj_id]).most_common(1)[0][0]
 
 
+# 두 위경도 좌표 사이의 실제 물리적 거리(미터)를 구하는 함수
 def get_real_distance(lat1, lon1, lat2, lon2):
-    R = 6371000
+    R = 6371000 # 지구 반지름 (m)
     phi1, phi2 = math.radians(lat1), math.radians(lat2)
-    dphi, dlambda = math.radians(lat2 - lat1), math.radians(lon2 - lon1)
+    dphi = math.radians(lat2 - lat1)
+    dlambda = math.radians(lon2 - lon1)
+
     a = math.sin(dphi/2)**2 + math.cos(phi1)*math.cos(phi2)*math.sin(dlambda/2)**2
-    return R * (2 * math.atan2(math.sqrt(a), math.sqrt(1 - a)))
+    c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
+    return R * c # 미터(m)로 반환
+
+
+
+
+# 시간에 따른 활동 반경을 계산하고, 그 안의 CCTV를 찾아내는 함수
+def get_cameras_in_search_radius(db: Session, from_cam_name: str, vx: float, vy: float, elapsed_seconds: float):
+    start_cam = db.query(CameraTopology).filter(CameraTopology.cam_name == from_cam_name).first()
+    if not start_cam:
+        return []
+
+    # 픽셀 속도 벡터의 크기(픽셀/프레임)를 실제 이동 속도(m/s)로 변환
+    # (추후 camera_topology테이블에 fov_angle, 높이에 따라 튜닝 필요. 임시로 0.3 적용)
+    pixel_speed = math.sqrt(vx**2 + vy**2)
+    real_speed_mps = pixel_speed * 0.3
+
+    # 만약 객체가 멈춰서 나갔다면 최소한의 도보 속도(1.2m/s) 가정
+    if real_speed_mps < 0.5:
+        real_speed_mps = 1.2
+
+    # 현재 예상되는 활동 반경 (거리 = 속력 * 시간, real_speed_mps * elapsed_seconds)
+    # 최소 오차범위(Margin) 15m를 더함
+    current_radius_m = (real_speed_mps * elapsed_seconds) + 15.0
+
+    # 활성화될 cams 리스트
+    activated_cams = []
+    all_cams = db.query(CameraTopology).filter(CameraTopology.cam_name != from_cam_name).all()
+
+    for cam in all_cams:
+        dist = get_real_distance(start_cam.lat, start_cam.lon, cam.lat, cam.lon)
+        # 카메라가 수색 반경 안으로 들어왔다면 활성화 목록에 추가
+        if dist <= current_radius_m:
+            activated_cams.append({"cam_name": cam.cam_name, "distance": round(dist, 1)})
+
+    return activated_cams
+
+
 
 def find_cameras_in_radius(db: Session, from_cam: str, vx: float, vy: float, seconds: float):
     start = db.query(CameraTopology).filter(CameraTopology.cam_name == from_cam).first()
@@ -458,12 +462,12 @@ def process_video_analysis(report_id: int, content: str = None):
     os.makedirs(output_dir, exist_ok=True)
 
     # API 제한으로 잠시 비활성화
-    # target_info = extract_color_with_llm(content)
-    # target_color = target_info.get("color", "")
-    # target_type = target_info.get("type", "")
+    target_info = extract_color_with_llm(content)
+    target_color = target_info.get("color", "")
+    target_type = target_info.get("type", "")
     # [테스트용 강제 고정]
-    target_color = "yellow"   # 무조건 yellow만 찾도록 고정
-    target_type = ""       # 옷 부위 조건은 무시
+    #target_color = "yellow"   # 무조건 yellow만 찾도록 고정
+    #target_type = ""       # 옷 부위 조건은 무시
 
     print(f" LLM 추출 결과: 색상={target_color}, 부위={target_type}")
     log_message = f" 신고 - 타겟 조건: {target_color} {target_type}" if target_color else "모든 객체"
@@ -490,12 +494,12 @@ def process_video_analysis(report_id: int, content: str = None):
             fps = int(cap.get(cv2.CAP_PROP_FPS))
             orig_w, orig_h = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH)), int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
 
-            # --- [OPTIMIZATION 1: Set a processing resolution] ---
+            # 영상 조정
             PROC_WIDTH = 1280
             w = PROC_WIDTH
             h = int(orig_h * (PROC_WIDTH / orig_w))
 
-            # --- [OPTIMIZATION 2: Pipe frames directly to FFmpeg] ---
+            # FFmpeg 설정
             ffmpeg_command = [
                 'ffmpeg', '-y', '-f', 'rawvideo', '-vcodec', 'rawvideo',
                 '-pix_fmt', 'bgr24', '-s', f'{w}x{h}', '-r', str(fps),
@@ -625,7 +629,7 @@ def process_video_analysis(report_id: int, content: str = None):
                             if best_roi is not None and best_roi.size > 0:
                                 local_roi_buffer[obj_id].append(best_roi)
 
-                            # 1. 현재 중심 좌표 및 속도 계산
+                            # 현재 중심 좌표 및 속도 계산
                             curr_c = ((x1 + x2) // 2, (y1 + y2) // 2)
                             prev = local_track_data.get(obj_id, {})
                             vx = (curr_c[0] - prev.get("prev_c", curr_c)[0]) // 3
@@ -634,7 +638,7 @@ def process_video_analysis(report_id: int, content: str = None):
                             is_target = (target_color == "") or (target_color.lower() in stable_color.lower())
                             is_exiting = (x1 < 40 or x2 > w - 40 or y1 < 40 or y2 > h - 40)
 
-                            # 👇👇👇 [추가 3] 실시간 ReID 매칭 로직 👇👇👇
+                            # 실시간 ReID 매칭 로직
                             reid_score = 0.0
                             is_reid_matched = False
 
@@ -649,7 +653,7 @@ def process_video_analysis(report_id: int, content: str = None):
 
                                 if curr_feat_str:
                                     reid_score = compute_cosine_similarity(target_saved_feat, curr_feat_str)
-                                    # 유사도가 75% 이상이면 동일인으로 확정!
+                                    # 유사도가 75% 이상이면 동일인으로 확정
                                     if reid_score >= 0.75:
                                         is_reid_matched = True
 
@@ -666,9 +670,9 @@ def process_video_analysis(report_id: int, content: str = None):
                                             extracted_feats.append(np.array(json.loads(f_json)))
 
                                     if extracted_feats:
-                                        # 1. 여러 지문을 수학적으로 평균(Mean) 내기
+                                        # 여러 지문을 수학적으로 평균(Mean) 내기
                                         avg_feat = np.mean(extracted_feats, axis=0)
-                                        # 2. 길이를 1로 맞춰 정규화(Normalize)하여 오차 제거
+                                        # 길이를 1로 맞춰 정규화(Normalize)하여 오차 제거
                                         avg_feat = avg_feat / norm(avg_feat)
                                         feat_str = json.dumps(avg_feat.tolist())
 
@@ -685,7 +689,7 @@ def process_video_analysis(report_id: int, content: str = None):
                                 except:
                                     db.rollback()
                                     ex_sent_flag = False
-                                # 👆👆👆 [수정 끝] 👆👆👆
+
                             else:
                                 ex_sent_flag = prev.get("ex_sent", False)
 
@@ -1141,7 +1145,7 @@ def init_camera_topology():
         db.close()
         return
 
-    # 테스트를 위한 가상의 캠퍼스/거리 위경도 좌표 세팅
+    # 테스트를 위한 가상의 거리 위경도 좌표 세팅
     cams = [
         CameraTopology(cam_name="CAM_01", lat=37.34000, lon=126.73300), # 메인 도로
         CameraTopology(cam_name="CAM_02", lat=37.34045, lon=126.73345), # 북쪽 거리 (약 60m 거리)
