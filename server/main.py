@@ -1150,7 +1150,7 @@ def init_camera_topology():
         CameraTopology(cam_name="CAM_01", lat=37.34000, lon=126.73300), # 메인 도로
         CameraTopology(cam_name="CAM_02", lat=37.34045, lon=126.73345), # 북쪽 거리 (약 60m 거리)
         CameraTopology(cam_name="CAM_03", lat=37.33950, lon=126.73250), # 남쪽 골목 (약 70m 거리)
-        CameraTopology(cam_name="CAM_04", lat=37.34100, lon=126.73400)  # 외곽 뷰 (약 140m 거리)
+        CameraTopology(cam_name="CAM_04", lat=37.34045, lon=126.73400)  # 외곽 뷰 (약 140m 거리)
     ]
     db.add_all(cams)
     db.commit()
