@@ -462,12 +462,12 @@ def process_video_analysis(report_id: int, content: str = None):
     os.makedirs(output_dir, exist_ok=True)
 
     # API 제한으로 잠시 비활성화
-    target_info = extract_color_with_llm(content)
-    target_color = target_info.get("color", "")
-    target_type = target_info.get("type", "")
+    #target_info = extract_color_with_llm(content)
+    #target_color = target_info.get("color", "")
+    #target_type = target_info.get("type", "")
     # [테스트용 강제 고정]
-    #target_color = "yellow"   # 무조건 yellow만 찾도록 고정
-    #target_type = ""       # 옷 부위 조건은 무시
+    target_color = "yellow"   # 무조건 yellow만 찾도록 고정
+    target_type = ""       # 옷 부위 조건은 무시
 
     print(f" LLM 추출 결과: 색상={target_color}, 부위={target_type}")
     log_message = f" 신고 - 타겟 조건: {target_color} {target_type}" if target_color else "모든 객체"
