@@ -637,14 +637,17 @@ def process_video_analysis(report_id: int, content: str = None):
 
                             is_target = (target_color == "") or (target_color.lower() in stable_color.lower())
                             is_exiting = (x1 < 40 or x2 > w - 40 or y1 < 40 or y2 > h - 40)
+                            is_confirmed = prev.get("confirmed", False) or is_reid_matched
+                            is_valid_target = is_target if not target_saved_feat else (is_target and is_confirmed)
 
                             # 실시간 ReID 매칭 로직
                             reid_score = 0.0
                             is_reid_matched = False
 
                             # 타겟 색상이고, 비교할 이전 지문이 존재할 때만 실행
-                            if is_target and target_saved_feat:
+                            if is_valid_target and is_exiting and not prev.get("ex_sent") and frame_count > 10:
                                 curr_feat_str = None
+                                rois_to_process = local_roi_buffer.get(obj_id, [])
                                 if roi_boxes_for_vis:
                                     rx1, ry1, rx2, ry2 = roi_boxes_for_vis[0]
                                     curr_feat_str = extract_reid_feature(frame[ry1:ry2, rx1:rx2])
@@ -725,7 +728,8 @@ def process_video_analysis(report_id: int, content: str = None):
                                 "prev_c": curr_c,
                                 "ex_sent": ex_sent_flag,
                                 "reid_score": reid_score,
-                                "is_reid_matched": is_reid_matched
+                                "is_reid_matched": is_reid_matched,
+                                "confirmed": is_confirmed
                             }
                     local_track_data = new_tracks
 
