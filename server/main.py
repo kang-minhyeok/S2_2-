@@ -654,8 +654,8 @@ def process_video_analysis(report_id: int, content: str = None):
                                 if curr_feat_str:
                                     reid_score = compute_cosine_similarity(target_saved_feat, curr_feat_str)
 
-                                    # reID 유사도가 75% 이상일시
-                                    if reid_score >= 0.75:
+                                    # reID 유사도가 65% 이상일시
+                                    if reid_score >= 0.65:
                                         curr_cam_name = f"CAM_0{i}"
 
                                         # DB에서 이전 카메라와 현재 카메라의 위치 정보(lat, lon) 가져오기
