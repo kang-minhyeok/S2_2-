@@ -637,17 +637,14 @@ def process_video_analysis(report_id: int, content: str = None):
 
                             is_target = (target_color == "") or (target_color.lower() in stable_color.lower())
                             is_exiting = (x1 < 40 or x2 > w - 40 or y1 < 40 or y2 > h - 40)
-                            is_confirmed = prev.get("confirmed", False) or is_reid_matched
-                            is_valid_target = is_target if not target_saved_feat else (is_target and is_confirmed)
 
-                            # 실시간 ReID 매칭 로직
-                            reid_score = 0.0
-                            is_reid_matched = False
+                            # 2. 실시간 ReID 매칭 로직 (객체가 화면 안에 있을 때 지속적으로 검사)
+                            reid_score = prev.get("reid_score", 0.0)
+                            is_reid_matched = prev.get("is_reid_matched", False)
 
-                            # 타겟 색상이고, 비교할 이전 지문이 존재할 때만 실행
-                            if is_valid_target and is_exiting and not prev.get("ex_sent") and frame_count > 10:
+                            # 타겟 색상이고, 과거 지문이 있으며, 아직 매칭 확정이 안 된 경우에만 검사
+                            if is_target and target_saved_feat and not is_reid_matched:
                                 curr_feat_str = None
-                                rois_to_process = local_roi_buffer.get(obj_id, [])
                                 if roi_boxes_for_vis:
                                     rx1, ry1, rx2, ry2 = roi_boxes_for_vis[0]
                                     curr_feat_str = extract_reid_feature(frame[ry1:ry2, rx1:rx2])
@@ -656,37 +653,35 @@ def process_video_analysis(report_id: int, content: str = None):
 
                                 if curr_feat_str:
                                     reid_score = compute_cosine_similarity(target_saved_feat, curr_feat_str)
-
-                                    # reID 유사도가 65% 이상일시
-                                    if reid_score >= 0.65:
+                                    if reid_score >= 0.65: # 설정하신 65% 통과 기준
                                         curr_cam_name = f"CAM_0{i}"
-
-                                        # DB에서 이전 카메라와 현재 카메라의 위치 정보(lat, lon) 가져오기
                                         prev_cam = db.query(CameraTopology).filter(CameraTopology.cam_name == latest_handover.from_cam).first()
                                         curr_cam = db.query(CameraTopology).filter(CameraTopology.cam_name == curr_cam_name).first()
 
                                         if prev_cam and curr_cam and latest_handover.exit_time:
-                                            # 두 카메라 간의 실제 물리적 거리(m) 계산
                                             dist = get_real_distance(prev_cam.lat, prev_cam.lon, curr_cam.lat, curr_cam.lon)
-
-                                            # 경과 시간(초) 계산: 현재 분석 시간 - 과거 이탈 시간
                                             time_elapsed = (datetime.datetime.now() - latest_handover.exit_time).total_seconds()
                                             time_elapsed = max(time_elapsed, 0.1)
-
-                                            # 해당 거리와 시간 동안의 이동 속도(m/s)
                                             required_speed = dist / time_elapsed
 
-                                            # 인간의 이동 한계 속도 판별
+                                            # 시공간 제약 검증
                                             if required_speed <= 15.0:
                                                 is_reid_matched = True
                                             else:
                                                 is_reid_matched = False
                                         else:
-                                            # 좌표 정보가 DB에 누락된 경우 일단 매칭 허용 (예외)
                                             is_reid_matched = True
 
-                            if is_target and is_exiting and not prev.get("ex_sent") and frame_count > 10:
-                                # 15장 이미지를 병합해 마스터 지문 생성
+                            # 3. 🚨 타겟 인증 로직 (에러 해결 핵심)
+                            # 위(2번 단계)에서 is_reid_matched 값이 결정된 후에 평가하므로 에러가 나지 않습니다.
+                            is_confirmed = prev.get("confirmed", False) or is_reid_matched
+
+                            # 첫 카메라면 색상만 맞아도 통과, 다음 카메라부터는 '인증'까지 되어야 진짜 타겟
+                            is_valid_target = is_target if not target_saved_feat else (is_target and is_confirmed)
+
+                            # 4. 이탈 시 마스터 지문 생성 및 DB 저장
+                            # (가짜 객체면 is_valid_target이 False라서 아래 조건문 진입 자체가 차단됨)
+                            if is_valid_target and is_exiting and not prev.get("ex_sent") and frame_count > 10:
                                 feat_str = None
                                 rois_to_process = local_roi_buffer.get(obj_id, [])
 
@@ -698,9 +693,7 @@ def process_video_analysis(report_id: int, content: str = None):
                                             extracted_feats.append(np.array(json.loads(f_json)))
 
                                     if extracted_feats:
-                                        # 여러 지문을 수학적으로 평균(Mean) 내기
                                         avg_feat = np.mean(extracted_feats, axis=0)
-                                        # 길이를 1로 맞춰 정규화(Normalize)하여 오차 제거
                                         avg_feat = avg_feat / norm(avg_feat)
                                         feat_str = json.dumps(avg_feat.tolist())
 
@@ -708,7 +701,7 @@ def process_video_analysis(report_id: int, content: str = None):
                                     new_event = HandoverEvent(
                                         report_id=report_id, obj_id=int(obj_id),
                                         from_cam=f"CAM_0{i}", vx=float(vx), vy=float(vy),
-                                        reid_feature=feat_str # 마스터 지문 저장
+                                        reid_feature=feat_str
                                     )
                                     db.add(new_event)
                                     db.commit()
@@ -717,7 +710,6 @@ def process_video_analysis(report_id: int, content: str = None):
                                 except:
                                     db.rollback()
                                     ex_sent_flag = False
-
                             else:
                                 ex_sent_flag = prev.get("ex_sent", False)
 
