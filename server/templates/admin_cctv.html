@@ -241,6 +241,7 @@
 	updateClock();
 
 	// 5. 수색 반경 확장 애니메이션
+	// [수정 전 코드를 아래 코드로 덮어씌워 주세요]
 	function startSearchRadius(eventData) {
 		if (searchCircle) searchCircle.setMap(null);
 		if (animationId) cancelAnimationFrame(animationId);
@@ -248,12 +249,19 @@
 		const startPos = cameraLocations[eventData.from_cam];
 		if (!startPos) return;
 
-		const exitTime = new Date(eventData.exit_time);
-		const speed = Math.sqrt(Math.pow(eventData.vx, 2) + Math.pow(eventData.vy, 2)) * 0.3;
+		// 👇 [추가] 속도가 0에 가깝게 측정되더라도, 최소 도보 속도(1.2m/s)를 보장합니다.
+		let speed = Math.sqrt(Math.pow(eventData.vx, 2) + Math.pow(eventData.vy, 2)) * 0.3;
+		if (speed < 0.5) {
+			speed = 1.2;
+		}
+
+		// 👇 [핵심] 타임존 에러 해결: 서버가 준 경과 시간(초)을 기준점으로 잡습니다.
+		const initialElapsed = eventData.elapsed_seconds || 0;
+		const animationStartTime = Date.now();
 
 		searchCircle = new kakao.maps.Circle({
 			center: new kakao.maps.LatLng(startPos.lat, startPos.lon),
-			radius: 0,
+			radius: 15, // 초기 반경 15m
 			strokeWeight: 2,
 			strokeColor: '#FF0000',
 			strokeOpacity: 0.8,
@@ -263,9 +271,12 @@
 		searchCircle.setMap(map);
 
 		function animate() {
-			const now = new Date();
-			const elapsed = (now.getTime() - exitTime.getTime()) / 1000;
-			const currentRadius = (speed * Math.max(0, elapsed)) + 15;
+			// 브라우저에서 애니메이션이 돌아간 추가 시간(초)을 더해줍니다.
+			const additionalElapsed = (Date.now() - animationStartTime) / 1000;
+			const totalElapsed = initialElapsed + additionalElapsed;
+
+			// 현재 반경 = (속력 * 총 경과시간) + 15m
+			const currentRadius = (speed * totalElapsed) + 15;
 
 			searchCircle.setRadius(currentRadius);
 

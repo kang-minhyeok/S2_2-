@@ -749,7 +749,7 @@ def process_video_analysis(report_id: int, content: str = None):
                         if current_time - last_log_time > 1.5:
                             if target_saved_feat and data.get("is_reid_matched"):
                                 # 동일인 확인 시 붉은색 사이렌 이모지와 함께 확실한 매칭 알림
-                                emit_log(f"🚨 [ReID MATCH] CAM 0{i} 타겟 재식별 확정! (일치율: {data['reid_score']*100:.1f}%)")
+                                emit_log(f" [ReID MATCH] CAM 0{i} 타겟 재식별 확정! (일치율: {data['reid_score']*100:.1f}%)")
                             elif not target_saved_feat:
                                 emit_log(f"MATCH: CAM 0{i}에서 {data['color']} {target_type if target_type else '객체'}(ID:{obj_id}) 추적 중")
                             last_log_time = current_time
@@ -1134,12 +1134,15 @@ async def get_latest_handover(report_id: int, db: Session = Depends(get_db)):
     event = db.query(HandoverEvent).filter(HandoverEvent.report_id == report_id).order_by(HandoverEvent.id.desc()).first()
     if not event:
         return {"status": "none"}
+
+    elapsed_seconds = (datetime.datetime.now() - event.exit_time).total_seconds()
+
     return {
         "status": "success",
         "from_cam": event.from_cam,
         "vx": event.vx,
         "vy": event.vy,
-        "exit_time": event.exit_time.isoformat() + "Z"
+        "elapsed_seconds": max(0, elapsed_seconds)
     }
 
 
