@@ -248,10 +248,8 @@
 		const startPos = cameraLocations[eventData.from_cam];
 		if (!startPos) return;
 
-		let speed = Math.sqrt(Math.pow(eventData.vx, 2) + Math.pow(eventData.vy, 2)) * 0.3;
-		if (speed < 0.5) {
-			speed = 1.2;
-		}
+		let rawSpeed = Math.sqrt(Math.pow(eventData.vx, 2) + Math.pow(eventData.vy, 2)) * 0.3;
+		const speed = Math.max(1.2, rawSpeed);
 
 		const initialElapsed = eventData.elapsed_seconds || 0;
 		const animationStartTime = Date.now();
