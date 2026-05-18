@@ -248,6 +248,7 @@
 		const startPos = cameraLocations[eventData.from_cam];
 		if (!startPos) return;
 
+
 		let rawSpeed = Math.sqrt(Math.pow(eventData.vx, 2) + Math.pow(eventData.vy, 2)) * 0.3;
 		const speed = Math.max(1.2, rawSpeed);
 

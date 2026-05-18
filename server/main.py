@@ -800,6 +800,7 @@ async def websocket_endpoint(websocket: WebSocket, report_id: str):
 @app.get("/logs")
 async def get_detection_logs(color: str = Query(None)):
 
+
     db = SessionLocal()
     try:
         # 1. DB에서 쿼리 생성
