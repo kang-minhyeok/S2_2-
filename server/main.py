@@ -564,30 +564,109 @@ def process_video_analysis(report_id: int, content: str = None, cams_to_process:
                         boxes = results[0].boxes.xyxy.cpu().numpy().astype(int)
                         ids = results[0].boxes.id.cpu().numpy().astype(int)
 
+
+                        has_keypoints = results[0].keypoints is not None
+                        if has_keypoints:
+                            kpts = results[0].keypoints.xy.cpu().numpy().astype(int)
+
                         for j, obj_id in enumerate(ids):
                             x1, y1, x2, y2 = boxes[j]
+                            rois = []
+                            roi_boxes_for_vis = []
 
-                            # 색상 추출
-                            roi_h, roi_w = y2 - y1, x2 - x1
-                            crop_y1, crop_y2 = max(0, int(y1 + roi_h * 0.2)), min(h, int(y1 + roi_h * 0.5))
-                            crop_x1, crop_x2 = max(0, int(x1 + roi_w * 0.2)), min(w, int(x2 - roi_w * 0.2))
+                            # ROI 영역 추출 로직
+                            if has_keypoints and len(kpts[j]) >= 17:
+                                if target_type != "bottom": # 상의 또는 기본
+                                    shoulder_l, shoulder_r = kpts[j][5], kpts[j][6]
+                                    hip_l, hip_r = kpts[j][11], kpts[j][12]
+                                    valid_pts = [p for p in [shoulder_l, shoulder_r, hip_l, hip_r] if p[0] > 0 and p[1] > 0]
+                                    if len(valid_pts) >= 3:
+                                        pts_array = np.array(valid_pts)
+                                        tx1, ty1 = np.min(pts_array, axis=0)
+                                        tx2, ty2 = np.max(pts_array, axis=0)
+                                        margin_x = int((tx2 - tx1) * 0.1)
+                                        crop_x1, crop_y1 = max(0, tx1 + margin_x), max(0, ty1)
+                                        crop_x2, crop_y2 = min(w, tx2 - margin_x), min(h, ty2)
+                                        if crop_y2 > crop_y1 and crop_x2 > crop_x1:
+                                            rois.append(frame[crop_y1:crop_y2, crop_x1:crop_x2])
+                                            roi_boxes_for_vis.append((crop_x1, crop_y1, crop_x2, crop_y2))
 
+                                elif target_type == "bottom": # 하의
+                                    # 왼쪽 다리
+                                    hip_l, knee_l, ankle_l = kpts[j][11], kpts[j][13], kpts[j][15]
+                                    leg_l_pts = [p for p in [hip_l, knee_l, ankle_l] if p[0] > 0 and p[1] > 0]
+                                    if len(leg_l_pts) >= 2:
+                                        pts_array = np.array(leg_l_pts)
+                                        lx1, ly1 = np.min(pts_array, axis=0)
+                                        lx2, ly2 = np.max(pts_array, axis=0)
+                                        margin_x = int((lx2 - lx1) * 0.5)
+                                        crop_x1, crop_y1 = max(0, lx1 - margin_x), max(0, ly1)
+                                        crop_x2, crop_y2 = min(w, lx2 + margin_x), min(h, ly2)
+                                        if crop_y2 > crop_y1 and crop_x2 > crop_x1:
+                                            rois.append(frame[crop_y1:crop_y2, crop_x1:crop_x2])
+                                            roi_boxes_for_vis.append((crop_x1, crop_y1, crop_x2, crop_y2))
+
+                                    # 오른쪽 다리
+                                    hip_r, knee_r, ankle_r = kpts[j][12], kpts[j][14], kpts[j][16]
+                                    leg_r_pts = [p for p in [hip_r, knee_r, ankle_r] if p[0] > 0 and p[1] > 0]
+                                    if len(leg_r_pts) >= 2:
+                                        pts_array = np.array(leg_r_pts)
+                                        rx1, ry1 = np.min(pts_array, axis=0)
+                                        rx2, ry2 = np.max(pts_array, axis=0)
+                                        margin_x = int((rx2 - rx1) * 0.5)
+                                        crop_x1, crop_y1 = max(0, rx1 - margin_x), max(0, ry1)
+                                        crop_x2, crop_y2 = min(w, rx2 + margin_x), min(h, ry2)
+                                        if crop_y2 > crop_y1 and crop_x2 > crop_x1:
+                                            rois.append(frame[crop_y1:crop_y2, crop_x1:crop_x2])
+                                            roi_boxes_for_vis.append((crop_x1, crop_y1, crop_x2, crop_y2))
+
+                            if not rois: # 백업 로직
+                                roi_h, roi_w = y2 - y1, x2 - x1
+                                if target_type == "bottom":
+                                    crop_y1, crop_y2 = int(y1 + roi_h * 0.55), int(y1 + roi_h * 0.95)
+                                else:
+                                    crop_y1, crop_y2 = int(y1 + roi_h * 0.20), int(y1 + roi_h * 0.45)
+                                crop_x1, crop_x2 = int(x1 + roi_w * 0.35), int(x2 - roi_w * 0.35)
+                                crop_y1, crop_y2 = max(0, crop_y1), min(h, crop_y2)
+                                crop_x1, crop_x2 = max(0, crop_x1), min(w, crop_x2)
+                                if crop_y2 > crop_y1 and crop_x2 > crop_x1:
+                                    rois.append(frame[crop_y1:crop_y2, crop_x1:crop_x2])
+                                    roi_boxes_for_vis.append((crop_x1, crop_y1, crop_x2, crop_y2))
+
+                            # 색상 판별 로직
+                            detected_colors = [detect_color_name(r) for r in rois if r is not None and r.size > 0]
                             stable_color = "Unknown"
-                            if crop_y2 > crop_y1 and crop_x2 > crop_x1:
-                                roi_img = frame[crop_y1:crop_y2, crop_x1:crop_x2]
-                                detected_color = detect_color_name(roi_img)
 
+                            if detected_colors:
                                 if obj_id not in local_color_buffer:
                                     local_color_buffer[obj_id] = deque(maxlen=10)
-                                if detected_color != "Unknown":
-                                    local_color_buffer[obj_id].append(detected_color)
+                                for color in detected_colors:
+                                    if color != "Unknown":
+                                        local_color_buffer[obj_id].append(color)
 
-                                if len(local_color_buffer[obj_id]) >= 3:
-                                    stable_color = Counter(local_color_buffer[obj_id]).most_common(1)[0][0]
-                                elif local_color_buffer[obj_id]:
-                                    stable_color = local_color_buffer[obj_id][-1]
+                                current_buffer = local_color_buffer.get(obj_id)
+                                if current_buffer:
+                                    if len(current_buffer) >= 3:
+                                        stable_color = Counter(current_buffer).most_common(1)[0][0]
+                                    else:
+                                        stable_color = current_buffer[-1]
 
-                            # 이전 상태 로드
+                            # 마스터 지문을 생성을 위해 매 프레임 ROI 누적
+                            if obj_id not in local_roi_buffer:
+                                local_roi_buffer[obj_id] = deque(maxlen=15)
+
+                            best_roi = None
+                            if roi_boxes_for_vis:
+                                rx1, ry1, rx2, ry2 = roi_boxes_for_vis[0]
+                                best_roi = frame[ry1:ry2, rx1:rx2]
+                            elif boxes[j] is not None:
+                                bx1, by1, bx2, by2 = boxes[j]
+                                best_roi = frame[max(0, by1):by2, max(0, bx1):bx2]
+
+                            if best_roi is not None and best_roi.size > 0:
+                                local_roi_buffer[obj_id].append(best_roi)
+
+
                             prev = local_track_data.get(obj_id, {})
                             curr_c = ((x1 + x2) // 2, (y1 + y2) // 2)
                             vx = (curr_c[0] - prev.get("prev_c", curr_c)[0]) // 3
@@ -598,24 +677,26 @@ def process_video_analysis(report_id: int, content: str = None, cams_to_process:
                             match_logged = prev.get("match_logged", False)
                             ex_sent = prev.get("ex_sent", False)
 
-                            # 진입/이탈 판정
                             is_edge = (x1 < 60 or x2 > w - 60 or y1 < 60 or y2 > h - 60)
                             if not is_edge:
                                 has_entered = True
                             is_exiting = (is_edge or is_last_frame) and has_entered
 
-                            # 타겟 색상 필터링
                             is_target_color = (target_color == "") or (target_color.lower() in stable_color.lower())
 
-                            # 동일인 특징벡터를 사용해 65%로 판정
+                            # 65% 확정 로직
                             if is_target_color and not is_reid_matched:
                                 if target_saved_feat:
-                                    # CAM_02 이상부터 이전 마스터 지문과 일치율 65% 이상 검사
-                                    curr_feat_str = extract_reid_feature(frame[max(0, y1):y2, max(0, x1):x2])
+                                    curr_feat_str = None
+                                    if roi_boxes_for_vis:
+                                        rx1, ry1, rx2, ry2 = roi_boxes_for_vis[0]
+                                        curr_feat_str = extract_reid_feature(frame[ry1:ry2, rx1:rx2])
+                                    elif boxes[j] is not None:
+                                        curr_feat_str = extract_reid_feature(frame[max(0, by1):by2, max(0, bx1):bx2])
+
                                     if curr_feat_str:
                                         reid_score = compute_cosine_similarity(target_saved_feat, curr_feat_str)
                                         if reid_score >= 0.65:
-                                            # 오탐 방지, 텔레포트 검증
                                             prev_cam = db.query(CameraTopology).filter(CameraTopology.cam_name == latest_handover.from_cam).first()
                                             curr_cam = db.query(CameraTopology).filter(CameraTopology.cam_name == f"CAM_0{i}").first()
                                             if prev_cam and curr_cam and latest_handover.exit_time:
@@ -625,13 +706,11 @@ def process_video_analysis(report_id: int, content: str = None, cams_to_process:
                                                     is_reid_matched = True
                                                     prev["reid_score"] = reid_score
                                 else:
-                                    # CAM_01 (최초): 색상만 맞으면 타겟으로 확정
                                     is_reid_matched = True
                                     prev["reid_score"] = 1.0
 
-                            # 타겟 이탈 시 다음 카메라 수색 반경 확장 연쇄 트리거
+                            # 타겟 이탈 시 다음 카메라 수색 반경 확장
                             if is_reid_matched and is_exiting and not ex_sent:
-                                # 마스터 지문 생성
                                 feat_str = None
                                 if obj_id in local_roi_buffer and local_roi_buffer[obj_id]:
                                     extracted_feats = [np.array(json.loads(f)) for r_img in local_roi_buffer[obj_id] if (f := extract_reid_feature(r_img))]
@@ -653,7 +732,6 @@ def process_video_analysis(report_id: int, content: str = None, cams_to_process:
                                     emit_log(f"[AI] [EXIT] 타겟(ID:{obj_id}) 이탈. 수색 반경 확장 시작.")
                                     ex_sent = True
 
-                                    # 다음 카메라 예약(Timer) 스레드
                                     def schedule_camera_analysis(current_vx, current_vy, origin_cam):
                                         local_db = SessionLocal()
                                         try:
@@ -664,7 +742,6 @@ def process_video_analysis(report_id: int, content: str = None, cams_to_process:
                                             real_speed_mps = max(1.2, math.sqrt(current_vx**2 + current_vy**2) * 0.3)
 
                                             for cam in all_cams:
-                                                # 재방문 금지, 이미 수색한 카메라는 재방문x
                                                 if cam.cam_name in global_visited_cams.get(report_id, set()):
                                                     continue
 
@@ -672,26 +749,19 @@ def process_video_analysis(report_id: int, content: str = None, cams_to_process:
                                                 eta = 0.0 if dist <= 15.0 else (dist - 15.0) / real_speed_mps
 
                                                 if eta < 300.0:
-                                                    emit_log(f" ⏳ {cam.cam_name}: 거리 {dist:.1f}m (약 {eta:.1f}초 후 도달 예정)")
-
+                                                    emit_log(f" {cam.cam_name}: 거리 {dist:.1f}m (약 {eta:.1f}초 후 도달 예정)")
                                                     def delayed_trigger(target_cam, wait_time, t_origin_cam):
                                                         try:
                                                             if wait_time > 0: time.sleep(wait_time)
-
-
                                                             check_db = SessionLocal()
                                                             latest = check_db.query(HandoverEvent).filter(HandoverEvent.report_id == report_id).order_by(HandoverEvent.id.desc()).first()
                                                             check_db.close()
-
-
-                                                            if latest and latest.from_cam != t_origin_cam:
-                                                                return
+                                                            if latest and latest.from_cam != t_origin_cam: return
 
                                                             emit_log(f"[SYSTEM] 반경이 {target_cam}에 닿았습니다. 분석 시작.")
                                                             process_video_analysis(report_id, content, [target_cam])
                                                         except Exception as e:
                                                             print(f"지연 실행 에러: {e}")
-
                                                     threading.Thread(target=delayed_trigger, args=(cam.cam_name, eta, origin_cam)).start()
                                         finally:
                                             local_db.close()
@@ -703,14 +773,10 @@ def process_video_analysis(report_id: int, content: str = None, cams_to_process:
                                     db.rollback()
                                     ex_sent = False
 
-                            # 마스터 지문용 ROI 누적
-                            if obj_id not in local_roi_buffer: local_roi_buffer[obj_id] = deque(maxlen=15)
-                            local_roi_buffer[obj_id].append(frame[max(0, y1):y2, max(0, x1):x2])
-
-                            # 현재 상태 업데이트
                             new_tracks[obj_id] = {
                                 "box": boxes[j],
                                 "color": stable_color,
+                                "roi_boxes": roi_boxes_for_vis, # ROI 데이터 저장
                                 "prev_c": curr_c,
                                 "has_entered": has_entered,
                                 "is_reid_matched": is_reid_matched,
@@ -720,27 +786,34 @@ def process_video_analysis(report_id: int, content: str = None, cams_to_process:
                             }
                     local_track_data = new_tracks
 
-                # 화면 렌더링 및 궤적 로그 발송
+                # 화면 렌더링 및 UI 그리기
                 current_time = time.time()
                 for obj_id, data in local_track_data.items():
                     if target_color == "" or target_color.lower() in data["color"].lower():
                         bx1, by1, bx2, by2 = data["box"]
 
-                        # 65% 통과 확정 시
+                        # 타겟 확정 여부에 따른 메인 박스(빨강/초록)
                         if data.get("is_reid_matched"):
                             match_text = f" (Match: {data.get('reid_score', 0.0)*100:.1f}%)" if target_saved_feat else " (Target)"
                             cv2.rectangle(frame, (bx1, by1), (bx2, by2), (0, 0, 255), 3)
                             cv2.putText(frame, f"TARGET ID:{obj_id} {data['color']}{match_text}", (bx1, by1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2)
-
-                            # 재식별 즉시 신호 전송 -> 화면에서 수색원이 지워지고 선이 그려짐
-                            if not data.get("match_logged"):
-                                if target_saved_feat:
-                                    emit_log(f" [ReID MATCH] CAM 0{i} 타겟 재식별 확정! (일치율: {data.get('reid_score')*100:.1f}%)")
-                                data["match_logged"] = True
-
                         else:
                             cv2.rectangle(frame, (bx1, by1), (bx2, by2), (0, 255, 0), 2)
                             cv2.putText(frame, f"ID:{obj_id} {data['color']}", (bx1, by1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 1)
+
+
+                        for rx1, ry1, rx2, ry2 in data.get("roi_boxes", []):
+                            cv2.rectangle(frame, (rx1, ry1), (rx2, ry2), (0, 255, 0), 2)
+
+                        if data.get("roi_boxes"):
+                            rx1, ry1, _, _ = data["roi_boxes"][0]
+                            cv2.putText(frame, "ROI", (rx1, ry1 - 5), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 1)
+
+                        # 로그 연동
+                        if data.get("is_reid_matched") and not data.get("match_logged"):
+                            if target_saved_feat:
+                                emit_log(f" [ReID MATCH] CAM 0{i} 타겟 재식별 확정! (일치율: {data.get('reid_score')*100:.1f}%)")
+                            data["match_logged"] = True
 
                         if current_time - last_log_time > 1.5 and not data.get("ex_sent"):
                             if not target_saved_feat:
