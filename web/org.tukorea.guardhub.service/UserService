@@ -17,7 +17,7 @@ public class UserService {
 
 	private final UserRepository userRepository;
 	private final PasswordEncoder passwordEncoder;
-	private final OrgCodeRepository orgCodeRepository; // ✅ 추가
+	private final OrgCodeRepository orgCodeRepository;
 
 	private LocalDate parseBirth(String birth) {
 		return LocalDate.parse(birth);
@@ -42,7 +42,7 @@ public class UserService {
 			throw new IllegalArgumentException("소속 코드를 입력해 주세요.");
 		}
 
-		// ✅ 핵심: 유효한 소속 코드인지 확인
+		// 유효한 소속 코드인지 확인
 		if (!orgCodeRepository.existsByCodeAndActiveTrue(req.getOrgCode())) {
 			throw new IllegalArgumentException("유효하지 않은 소속 코드입니다.");
 		}
