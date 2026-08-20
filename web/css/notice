@@ -1,0 +1,319 @@
+@charset "UTF-8";
+
+/* ===== Global Variables & Design Tokens (home.css 톤앤매너 완벽 동기화) ===== */
+:root {
+	--bg: #f6f7f9;
+	--card: #ffffff;
+	--text: #111827;
+	--muted: #6b7280;
+	--line: #e5e7eb;
+	--dark-line: #cbd5e1; /* 기존 너무 어두운 선을 home 스타일의 은은한 라인으로 변경 */
+	--primary: #111827;
+	--shadow: 0 14px 30px rgba(0, 0, 0, .10);
+	--radius: 16px;
+	--bg-label: #f8fafc; /* 밝고 부드러운 라벨 배경 */
+	--bg-value: #ffffff; /* 깨끗한 화이트 값 배경 */
+}
+
+* {
+	box-sizing: border-box;
+}
+
+html, body {
+	height: 100%;
+}
+
+body {
+	margin: 0;
+	padding: 0;
+	font-family: system-ui, "Pretendard", sans-serif;
+	/* home.css와 100% 동일 */
+	color: var(--text);
+	background: var(--bg);
+	line-height: 1.5; /* 가독성을 향상시키는 부드러운 행간 */
+}
+
+/* ===== Common Header / Layout ===== */
+.top, .container {
+	width: min(1100px, 92vw);
+	margin: 26px auto 0;
+}
+
+.container {
+	margin: 16px auto 60px;
+	padding: 0;
+}
+
+.logo {
+	font-size: 22px; /* home.css 로고 크기와 맞춤 */
+	font-weight: 900;
+	text-decoration: none;
+	color: var(--text);
+	display: inline-block;
+}
+
+.logo:hover {
+	opacity: .85;
+}
+
+.main-title, .page-title {
+	margin: 18px 0 14px;
+	font-size: 20px; /* 기존 18px에서 타이틀 강조를 위해 살짝 조정 */
+	font-weight: 800;
+	color: var(--text);
+	letter-spacing: -0.02em;
+}
+
+.sub-title {
+	font-size: 15px;
+	font-weight: 600;
+	margin: 0 0 16px 0;
+	color: var(--muted);
+}
+
+/* =========================================
+   1. 목록 페이지 (notice.html) - home.css 카드 스타일 연동
+   ========================================= */
+.card.table-card {
+	width: 100%;
+	background: var(--card);
+	border: 1px solid var(--line);
+	border-radius: var(--radius);
+	box-shadow: var(--shadow);
+	overflow: hidden;
+}
+
+.notice-table {
+	width: 100%;
+	border-collapse: collapse;
+	text-align: left;
+}
+
+.notice-table th, .notice-table td {
+	padding: 16px 14px; /* 여백을 늘려 더 또렷하고 답답하지 않게 조정 */
+	border-bottom: 1px solid var(--line);
+	border-right: 1px solid var(--line);
+	font-size: 14px;
+	color: var(--text);
+}
+
+.notice-table th:last-child, .notice-table td:last-child {
+	border-right: none;
+}
+
+.notice-table th {
+	background-color: #f9fafb;
+	font-weight: 800; /* 과도한 900 대신 부드러운 800 적용 */
+	font-size: 14px;
+	color: #374151;
+}
+
+.notice-table tr:last-child td {
+	border-bottom: none;
+}
+
+/* 줄무늬 효과 */
+.notice-table tbody tr:nth-child(even) {
+	background-color: #fcfcfd;
+}
+
+.col-num {
+	width: 90px;
+	text-align: center;
+	font-weight: 600;
+	color: var(--muted);
+}
+
+.col-title {
+	width: auto;
+}
+
+.col-date {
+	width: 160px;
+	text-align: center;
+	color: var(--muted);
+	font-size: 13.5px;
+}
+
+.col-author {
+	width: 140px;
+	text-align: center;
+	font-weight: 600;
+}
+
+.clickable-row {
+	cursor: pointer;
+	transition: background-color 0.15s ease;
+}
+
+.clickable-row:hover {
+	background-color: rgba(17, 24, 39, .03);
+}
+
+.title-link {
+	display: inline-block;
+	width: 100%;
+	text-decoration: none;
+	color: var(--text);
+	font-size: 14px;
+	font-weight: 600; /* 제목 가독성 UP */
+	padding: 4px 6px;
+	border-radius: 8px;
+	transition: all 0.15s ease;
+}
+
+.title-link:hover {
+	background: rgba(17, 24, 39, .05);
+	color: var(--primary);
+}
+
+/* =========================================
+   2. 상세 페이지 (notice_detail.html) - 부드러운 미니멀 스타일
+   ========================================= */
+.detail-section {
+	width: 100%;
+	box-shadow: var(--shadow);
+	border-radius: var(--radius);
+	overflow: hidden;
+}
+
+.detail-table {
+	width: 100%;
+	border: 1px solid var(--line);
+	background-color: var(--card);
+	border-radius: var(--radius);
+	border-collapse: separate;
+	border-spacing: 0;
+	overflow: hidden;
+}
+
+.detail-row {
+	display: grid;
+	grid-template-columns: 160px 1fr;
+	border-top: 1px solid var(--line);
+}
+
+.detail-row:first-child {
+	border-top: 0;
+}
+
+.detail-cell {
+	padding: 16px 20px;
+	font-size: 14.5px; /* 읽기 편하도록 폰트 미세 조정 */
+	color: var(--text);
+}
+
+.detail-cell.label {
+	background: var(--bg-label);
+	font-weight: 700;
+	color: #374151;
+	border-right: 1px solid var(--line);
+	display: flex;
+	align-items: center;
+}
+
+.detail-cell.value {
+	background: var(--bg-value);
+	display: flex;
+	align-items: center;
+	word-break: break-all;
+	font-weight: 500;
+}
+
+/* 내용 영역 크게 */
+.content-row {
+	min-height: 180px;
+}
+
+.content-row .detail-cell.label {
+	align-items: flex-start;
+}
+
+.content-row .detail-cell.value {
+	align-items: flex-start;
+	white-space: pre-wrap;
+	line-height: 1.65; /* 긴 글 읽을 때 최상의 가독성 */
+	color: #1f2937;
+}
+
+/* 하단 버튼 영역 */
+.actions {
+	margin-top: 24px;
+	display: flex;
+	justify-content: flex-end;
+	gap: 12px;
+}
+
+.btn {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	padding: 10px 20px;
+	border: 1px solid var(--line);
+	background: #ffffff;
+	border-radius: 12px; /* home.css의 둥근 모서리 느낌 유지 */
+	text-decoration: none;
+	color: var(--text);
+	font-size: 14px;
+	font-weight: 700;
+	cursor: pointer;
+	transition: all 0.2s ease;
+	box-shadow: 0 2px 5px rgba(0, 0, 0, 0.03);
+}
+
+.btn:hover {
+	background: #f8fafc;
+	border-color: #cbd5e1;
+	transform: translateY(-1px);
+}
+
+/* =========================================
+   3. 반응형 모바일 대응
+   ========================================= */
+@media ( max-width : 720px) {
+	.col-num {
+		width: 60px;
+	}
+	.col-date {
+		width: 110px;
+	}
+	.col-author {
+		width: 100px;
+	}
+	.notice-table th, .notice-table td, .detail-cell {
+		font-size: 13.5px;
+		padding: 12px 10px;
+	}
+	.detail-row {
+		grid-template-columns: 100px 1fr;
+	}
+}
+
+.page {
+	min-height: 100vh;
+	padding: 28px 18px 64px;
+	display: grid;
+	place-items: start center;
+}
+
+.card {
+	width: min(1280px, 94vw);
+	background: var(--card);
+	border: 1px solid var(--line);
+	border-radius: var(--radius);
+	box-shadow: var(--shadow);
+	padding: 22px 22px 32px;
+}
+
+.header {
+	display: flex;
+	align-items: center;
+	gap: 22px;
+	padding: 6px 4px 14px;
+	border-bottom: 1px solid var(--line);
+}
+
+.menu a.active {
+	background: rgba(17, 24, 39, .06);
+	font-weight: 700;
+}
