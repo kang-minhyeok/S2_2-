@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>가드허브 - 마이페이지</title>
+<link rel="stylesheet" th:href="@{/css/register.css}">
+</head>
+<body>
+
+	<div class="container">
+		<header class="header">
+			<a href="/" class="logo">가드허브</a> <span class="user-info-text"
+				th:text="${user.name} + ' 님'">사용자님</span>
+		</header>
+
+		<h1 class="title">📝 정보 등록</h1>
+
+		<!-- 💡 저장 완료 알림 메세지 (URL에 saved=true 가 포함되어 있을 때만 표시) -->
+		<div th:if="${param.saved}" class="toast-success" id="toastSuccess">
+			✅ <span>응급 신체/특이사항 정보가 성공적으로 저장되었습니다!</span>
+		</div>
+
+		<!-- 응급 대원 안내 문구 -->
+		<div class="alert-box">
+			🚨 <strong>응급정보 등록 안내:</strong> 작성하신 정보는 신속조치가 필요한 응급상황 발생 시 구급대원 및
+			경찰이 구조 목적으로 확인할 수 있습니다.
+		</div>
+
+		<form th:action="@{/register}" method="post">
+
+			<!-- 1. 기본 정보 (읽기전용) -->
+			<div class="section-title">📌 기본 회원 정보</div>
+			<div class="form-row">
+				<div class="form-group">
+					<label>이름</label> <input type="text" th:value="${user.name}"
+						readonly>
+				</div>
+				<div class="form-group">
+					<label>생년월일</label> <input type="text" th:value="${user.birth}"
+						readonly>
+				</div>
+			</div>
+
+			<!-- 2. 신체 정보 등록 -->
+			<div class="section-title">📐 1. 신체 정보 등록</div>
+			<div class="form-row">
+				<div class="form-group">
+					<label for="height">신장 (cm)</label> <input type="number"
+						id="height" name="height" th:value="${user.height}"
+						placeholder="예: 175">
+				</div>
+				<div class="form-group">
+					<label for="weight">체중 (kg)</label> <input type="number"
+						id="weight" name="weight" th:value="${user.weight}"
+						placeholder="예: 70">
+				</div>
+				<div class="form-group">
+					<label for="bloodType">혈액형</label> <input type="text"
+						id="bloodType" name="bloodType" th:value="${user.bloodType}"
+						placeholder="예: RH+ A형 / RH- O형 등">
+				</div>
+			</div>
+
+			<!-- 3. 특이사항 등록 -->
+			<div class="section-title">🩸 2. 특이사항 등록 (특이 혈액형 / 질병 / 알레르기)</div>
+			<div class="form-group">
+				<label for="medicalCondition">기저질환, 복용 중인 약, 특이 알레르기 등</label>
+				<textarea id="medicalCondition" name="medicalCondition"
+					th:text="${user.medicalCondition}"
+					placeholder="예: 당뇨 복용 중, 페니실린 알레르기 있음, 희귀 혈액형(Weak A 등)"></textarea>
+			</div>
+
+			<!-- 4. 기타 응급 상황 전달사항 -->
+			<div class="section-title">🚑 3. 기타 (구급대원/경찰 요청사항)</div>
+			<div class="form-group">
+				<label for="emergencyNote">응급상황 시 구조대원이 확인해야 할 안내사항</label>
+				<textarea id="emergencyNote" name="emergencyNote"
+					th:text="${user.emergencyNote}"
+					placeholder="예: 의식 없을 시 보호자(010-XXXX-XXXX) 즉시 연락 바람, 현관 비밀번호 #1234"></textarea>
+			</div>
+
+			<button type="submit" class="submit-btn">응급 신체/특이사항 저장하기</button>
+		</form>
+	</div>
+
+	<!-- 💡 3초 뒤 저장 완료 알림 메세지가 부드럽게 사라지게 하는 스크립트 -->
+	<script>
+		window.addEventListener('DOMContentLoaded', () => {
+			const toast = document.getElementById('toastSuccess');
+			if (toast) {
+				setTimeout(() => {
+					toast.style.transition = 'opacity 0.5s ease';
+					toast.style.opacity = '0';
+					setTimeout(() => toast.remove(), 500);
+				}, 3000); // 3초 유지
+			}
+		});
+	</script>
+</body>
+</html>
