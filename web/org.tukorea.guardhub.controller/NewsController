@@ -1,0 +1,41 @@
+package org.tukorea.guardhub.controller;
+
+import org.tukorea.guardhub.domain.News;
+import org.tukorea.guardhub.repository.NewsRepository;
+import lombok.RequiredArgsConstructor;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Controller;
+import org.springframework.ui.Model;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
+
+@Controller
+@RequestMapping("/news")
+@RequiredArgsConstructor
+public class NewsController {
+
+	@Autowired
+	private final NewsRepository newsRepository;
+
+	@GetMapping
+	public String newsList(@RequestParam(name = "category", required = false) String category, Model model) {
+		List<News> newsList;
+		if (category != null && !category.isEmpty() && !"전체".equals(category)) {
+			newsList = newsRepository.findByCategoryOrderByIdDesc(category);
+		} else {
+			newsList = newsRepository.findAllByOrderByIdDesc();
+		}
+		model.addAttribute("newsList", newsList);
+		model.addAttribute("currentCategory", category != null ? category : "전체");
+		return "news";
+	}
+
+	@GetMapping("/detail")
+	public String newsDetail(@RequestParam(name = "id") Long id, Model model) {
+		News news = newsRepository.findById(id).orElseThrow(() -> new IllegalArgumentException("존재하지 않는 기사입니다."));
+		model.addAttribute("news", news);
+		return "news_detail";
+	}
+}
