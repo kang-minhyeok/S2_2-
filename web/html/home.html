@@ -1,87 +1,49 @@
 <!doctype html>
-<html lang="ko">
+<html lang="ko" xmlns:th="http://www.thymeleaf.org"
+	xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
 <head>
-	<meta charset="UTF-8" />
-	<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-	<title>GuardHub</title>
-	<link rel="stylesheet" href="/static/css/home.css" />
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>GuardHub</title>
+<link rel="stylesheet" href="/css/home.css" />
 </head>
 <body>
-<div class="page">
-	<div class="card">
-		<header class="header">
-			<a class="logo" href="/">가드허브</a>
-			<nav class="menu">
-				<a href="/news">알림/소식</a> <a href="/cases">사건조회</a>
-				<a href="/notice">공지사항</a> <a href="/mypage">마이페이지</a>
-			</nav>
+	<div class="page">
+		<div class="card">
+			<header class="header">
+				<a class="logo" href="/">가드허브</a>
 
-			<div class="auth">
-				{% if not user %}
-				<span>
-                        <a href="/login">로그인</a>
-                        <span>/</span>
-                        <a href="/signup/select">회원가입</a>
-                    </span>
-				{% else %}
-				<span>
-					<span style="margin-right: 15px; font-weight: bold; color: #333;">
-						{% if user.role == "ADMIN" %}
-							{{ user.name }}({{ user.affiliation }}) 님 환영합니다
-						{% else %}
-							{{ user.name }} 님 환영합니다
-						{% endif %}
+				<nav class="menu">
+					<a href="/news">알림/소식</a> <a href="/notice">공지사항</a> <a
+						href="/mypage">마이페이지</a>
+				</nav>
+
+				<div class="auth">
+					<!-- 비로그인: 로그인/회원가입 -->
+					<span sec:authorize="isAnonymous()"> <a href="/login">로그인</a>
+						<span>/</span> <a href="/signup">회원가입</a>
 					</span>
-                        <form action="/logout" method="post" style="display: inline;">
-                            <button type="submit" class="logout-btn">로그아웃</button>
-                        </form>
-                    </span>
-				{% endif %}
+
+					<!-- 로그인: 로그아웃 -->
+					<span sec:authorize="isAuthenticated()">
+						<form action="/logout" method="post" style="display: inline;">
+							<button type="submit" class="logout-btn">로그아웃</button>
+						</form>
+					</span>
+				</div>
+			</header>
+
+			<div class="banner">
+				<h2>안전한 관제 및 데이터 통합 관리</h2>
+				<p>가드허브(GuardHub)에서 실시간으로 확인해보세요.</p>
 			</div>
-		</header>
+			
+			<section class="quick">
+				<a class="quick-item" href="/register">📝 정보 등록</a> <a class="quick-item"
+					href="/admin">📂 관계자용 자료</a>
+			</section>
 
-		<section class="banner">
-  <div class="banner-text">
-    <p class="banner-badge">함께 만드는 안전한 우리 동네</p>
-    <h1>신뢰로 연결된<br>안전한 공동체</h1>
-    <p class="banner-desc">
-      사건·사고 정보와 생활 안전 정보를 공유하여<br>
-      모두가 안심할 수 있는 환경을 만들어갑니다.
-    </p>
-
-    <div class="banner-points">
-      <span>정확한 정보</span>
-      <span>함께하는 안전</span>
-      <span>개인정보 보호</span>
-    </div>
-  </div>
-
-  <div class="banner-visual">
-    <div class="shield">✓</div>
-  </div>
-</section>
-
-<section class="quick">
-  <a class="quick-item primary" href="/info">
-    <div class="quick-icon">✎</div>
-    <div>
-      <strong>정보 등록</strong>
-      <p>사건·사고, 위험 요소, 시설물 문제를 등록하세요.</p>
-    </div>
-    <span class="arrow">›</span>
-  </a>
-
-  <a class="quick-item" href="/admin">
-    <div class="quick-icon">▣</div>
-    <div>
-      <strong>관계자용 자료</strong>
-      <p>안전 관련 정책, 통계, 가이드 자료를 확인하세요.</p>
-    </div>
-    <span class="arrow">›</span>
-  </a>
-</section>
-		
+		</div>
 	</div>
-</div>
 </body>
 </html>
