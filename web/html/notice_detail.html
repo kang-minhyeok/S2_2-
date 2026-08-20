@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title th:text="|공지사항 - ${notice.title}|">공지사항 - GuardHub</title>
+<link rel="stylesheet" href="/css/notice.css">
+</head>
+<body>
+
+	<header class="top">
+		<a class="logo" href="/">가드허브</a>
+	</header>
+	
+	<div class="container">
+		<h2 class="sub-title">공지사항</h2>
+
+		<!-- 사진 2와 동일한 라인형 테이블 박스 -->
+		<section class="detail-section">
+			<div class="detail-table">
+
+				<div class="detail-row">
+					<div class="detail-cell label">제목</div>
+					<div class="detail-cell value" th:text="${notice.title}">시스템
+						정기 점검 및 업데이트 안내</div>
+				</div>
+
+				<div class="detail-row">
+					<div class="detail-cell label">등록일</div>
+					<div class="detail-cell value" th:text="${notice.regDate}">2026-03-13</div>
+				</div>
+
+				<div class="detail-row">
+					<div class="detail-cell label">작성자</div>
+					<div class="detail-cell value" th:text="${notice.writer}">김철수</div>
+				</div>
+
+				<div class="detail-row content-row">
+					<div class="detail-cell label">내용</div>
+					<div class="detail-cell value" th:text="${notice.content}">
+						가드허브 시스템 안정화를 위한 정기 점검이 진행될 예정입니다.<br> 점검 시간 동안 서비스 이용이 일시
+						중지될 수 있으니 양해 부탁드립니다.
+					</div>
+				</div>
+
+			</div>
+
+			<!-- 하단 우측 버튼 영역 -->
+			<div class="actions">
+				<a class="btn" href="/notice">목록으로</a> <a class="btn"
+					th:href="@{|/notice/${notice.id}/cctv|}" th:if="${notice.hasCctv}">CCTV
+					자료</a>
+			</div>
+		</section>
+	</div>
+
+</body>
+</html>
