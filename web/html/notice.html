@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>공지사항 - GuardHub</title>
+<link rel="stylesheet" href="/css/notice.css">
+</head>
+<body>
+	<div class="page">
+		<div class="card">
+			<header class="header">
+				<a class="logo" href="/">가드허브</a>
+			</header>
+
+			<!-- 공지사항 타이틀 -->
+			<section class="page-title-section" style="margin: 24px 4px 18px;">
+				<h1 class="page-title">📌 공지사항</h1>
+				<p class="sub-title">가드허브의 새로운 소식과 주요 안내사항을 확인하세요.</p>
+			</section>
+
+			<div class="card table-card">
+				<table class="notice-table">
+					<thead>
+						<tr>
+							<th class="col-num">번호</th>
+							<th class="col-title">공지 제목</th>
+							<th class="col-date">등록일</th>
+							<th class="col-author">작성자</th>
+						</tr>
+					</thead>
+					<tbody>
+						<!-- DB 연동 시: stat.count로 1부터 순번을 매길 수도 있습니다 -->
+						<tr th:each="notice, stat : ${noticeList}" class="clickable-row"
+							th:onclick="|location.href='@{/notice/detail/{id}(id=${notice.id})}'|">
+							<td class="col-num" th:text="${stat.count}">1</td>
+							<td class="col-title"><a
+								th:href="@{/notice/detail/{id}(id=${notice.id})}"
+								class="title-link" th:text="${notice.title}"> 가드허브 시스템 점검 안내
+							</a></td>
+							<td class="col-date"
+								th:text="${#temporals.format(notice.regDate, 'yyyy-MM-dd HH:mm')}">2026-03-13
+								16:27</td>
+							<td class="col-author" th:text="${notice.writer}">관리자</td>
+						</tr>
+
+						<!-- 정적 예시 데이터 (1번부터 시작하도록 수정) -->
+						<tr onclick="location.href='/notice/detail/1'"
+							class="clickable-row">
+							<td class="col-num">1</td>
+							<td class="col-title"><a href="/notice/detail/1"
+								class="title-link">시스템 정기 점검 및 업데이트 안내</a></td>
+							<td class="col-date">2026-03-13 16:27</td>
+							<td class="col-author">관리자</td>
+						</tr>
+						<tr onclick="location.href='/notice/detail/2'"
+							class="clickable-row">
+							<td class="col-num">2</td>
+							<td class="col-title"><a href="/notice/detail/2"
+								class="title-link">가드허브 보안 정책 변경 관련 공지</a></td>
+							<td class="col-date">2026-03-13 15:58</td>
+							<td class="col-author">관리자</td>
+						</tr>
+					</tbody>
+				</table>
+			</div>
+		</div>
+</body>
+</html>
