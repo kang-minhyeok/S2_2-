@@ -35,4 +35,16 @@ public class User {
 
 	@Column(nullable = false, length = 20)
 	private String role; // USER, ADMIN
+	
+	
+	// 마이페이지 정보
+	private String height;            // 키
+    private String weight;            // 몸무게
+    private String bloodType;         // 혈액형 (예: RH+ A형, RH- O형, 희귀혈액형 등)
+    
+    @Column(columnDefinition = "TEXT")
+    private String medicalCondition;  // 특이사항 (기저질환, 복용약, 알레르기)
+
+    @Column(columnDefinition = "TEXT")
+    private String emergencyNote;     // 구급대원/경찰 전달사항
 }
