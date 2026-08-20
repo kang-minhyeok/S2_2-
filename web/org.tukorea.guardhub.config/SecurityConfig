@@ -14,8 +14,8 @@ public class SecurityConfig {
 	public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
 		http.csrf(csrf -> csrf.disable())
 				.authorizeHttpRequests(auth -> auth.requestMatchers("/", "/css/**", "/js/**", "/images/**").permitAll()
-						.requestMatchers("/login", "/signup/**").permitAll().requestMatchers("/admin/**")
-						.hasRole("ADMIN") // ✅ 관계자만
+						.requestMatchers("/login", "/signup/**").permitAll().requestMatchers("/notice/**").permitAll().requestMatchers("/news/**").permitAll()
+						.requestMatchers("/admin/**").hasRole("ADMIN") // ✅ 관계자만
 						.anyRequest().authenticated())
 				.formLogin(login -> login.loginPage("/login").loginProcessingUrl("/loginProc")
 						.defaultSuccessUrl("/", true).failureUrl("/login?error=true").permitAll())
