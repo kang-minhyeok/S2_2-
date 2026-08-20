@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>가드허브 - 언론보도 & 활약상</title>
+<link rel="stylesheet" href="/css/news.css">
+</head>
+<body>
+	<div class="page">
+		<div class="card">
+			<!-- 상단 헤더 -->
+			<header class="header">
+				<a href="/" class="logo">가드허브</a>
+			</header>
+
+			<!-- 페이지 타이틀 영역 -->
+			<section class="page-title-section">
+				<h1 class="page-title">📰 가드허브 언론 보도</h1>
+				<p class="sub-title">가드허브를 통해 위험을 예방하고 사건을 해결한 언론 기사를 확인해보세요.</p>
+			</section>
+
+			<!-- 카테고리 필터 탭 -->
+			<div class="news-filter">
+				<a href="/news" class="filter-btn"
+					th:classappend="${currentCategory == '전체'} ? 'active'">전체보기</a> <a
+					href="/news?category=범죄 검거" class="filter-btn"
+					th:classappend="${currentCategory == '범죄 검거'} ? 'active'">🚨 범죄
+					검거</a> <a href="/news?category=사고·위험 예방" class="filter-btn"
+					th:classappend="${currentCategory == '사고·위험 예방'} ? 'active'">🛡️
+					사고·위험 예방</a> <a href="/news?category=언론보도" class="filter-btn"
+					th:classappend="${currentCategory == '언론보도'} ? 'active'">📺
+					언론보도</a>
+			</div>
+
+			<!-- 뉴스 리스트 영역 (DB 동적 반복문) -->
+			<div class="news-grid">
+
+				<!-- DB에 저장된 기사가 없을 때 -->
+				<div th:if="${#lists.isEmpty(newsList)}"
+					style="text-align: center; padding: 40px; color: var(--muted);">
+					등록된 언론 보도 기사가 없습니다.</div>
+
+				<!-- DB 기사 카드 반복 출력 -->
+				<article class="news-card" th:each="item : ${newsList}">
+					<div class="news-meta">
+						<span class="media-tag" th:text="${item.mediaTag}">보안뉴스</span> <span
+							class="news-date" th:text="${item.newsDate}">2026.07.18</span>
+					</div>
+					<h2 class="news-title" th:text="${item.title}">기사 제목</h2>
+
+					<!-- 인용구가 작성된 경우만 표시 -->
+					<blockquote class="news-quote"
+						th:if="${item.quote != null and !#strings.isEmpty(item.quote)}"
+						th:text="${item.quote}">"인용구 내용"</blockquote>
+
+					<p class="news-desc" th:text="${item.content}">기사 요약 내용...</p>
+
+					<div class="news-footer">
+						<span class="category-badge" th:text="${item.category}">범죄
+							검거</span> <a th:href="@{/news/detail(id=${item.id})}" class="news-link">기사
+							전문 읽기 →</a>
+					</div>
+				</article>
+
+			</div>
+		</div>
+	</div>
+</body>
+</html>
