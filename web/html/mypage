@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>마이페이지 - GuardHub</title>
+<link rel="stylesheet" href="/css/mypage.css">
+</head>
+<body>
+
+	<div class="page">
+		<div class="card">
+
+			<!-- 상단 헤더 -->
+			<header class="header">
+				<a class="logo" href="/">가드허브</a>
+				<nav class="menu">
+					<a href="/notice">알림/소식</a> <a href="/board">공지사항</a> <a
+						href="/mypage" class="active">마이페이지</a>
+				</nav>
+				<div class="auth">
+					<!-- 로그인 상태 시 로그아웃 등 추가 영역 -->
+					<a href="/logout">로그아웃</a>
+				</div>
+			</header>
+
+			<!-- 마이페이지 정보 조회 영역 -->
+			<main class="content-wrap">
+				<section class="profile-card">
+					<h1 class="profile-title">내 정보 조회</h1>
+					<p class="profile-sub">등록된 사용자 정보입니다.</p>
+
+					<div class="info-list">
+						<div class="info-item">
+							<span class="info-label">성명</span> <span class="info-value"
+								th:text="${user?.name}">홍길동</span>
+						</div>
+
+						<div class="info-item">
+							<span class="info-label">아이디</span> <span class="info-value"
+								th:text="${user?.username}">bong</span>
+						</div>
+
+						<div class="info-item">
+							<span class="info-label">생년월일</span> <span class="info-value"
+								th:text="${user?.birth}">1999-01-01</span>
+						</div>
+
+						<div class="info-item">
+							<span class="info-label">신장 / 체중</span> <span class="info-value"
+								th:text="${user?.height != null ? user.height + 'cm / ' + user.weight + 'kg' : '-'}">175cm
+								/ 70kg</span>
+						</div>
+
+						<div class="info-item">
+							<span class="info-label">혈액형</span> <span class="info-value"
+								th:text="${user?.bloodType}">A형</span>
+						</div>
+
+						<div class="info-item">
+							<span class="info-label">특이사항 / 응급 메모</span> <span
+								class="info-value" th:text="${user?.emergencyNote}">특이사항
+								없음</span>
+						</div>
+					</div>
+
+					<!-- 정보 수정하기 버튼 -->
+					<a href="/register" class="btn-edit">정보 수정하기</a>
+				</section>
+			</main>
+
+		</div>
+	</div>
+
+</body>
+</html>
