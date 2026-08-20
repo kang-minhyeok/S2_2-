@@ -6,7 +6,6 @@
 	--line: #e5e7eb;
 	--primary: #111827;
 	--shadow: 0 14px 30px rgba(0, 0, 0, .10);
-	--radius: 16px;
 }
 
 * {
@@ -22,40 +21,69 @@ body {
 	font-family: system-ui, "Pretendard", sans-serif;
 	background: var(--bg);
 	color: var(--text);
+	line-height: 1.4;
 }
 
-/* 상단 로고 */
-.top {
-	padding: 22px 28px;
+/* home.css의 .page 와 완전 동일 */
+.page {
+	min-height: 100vh;
+	padding: 28px 18px 64px;
+	display: grid;
+	place-items: start center;
 }
 
+/* home.css의 .card 와 완전 동일 */
+.page>.card {
+	width: min(1280px, 94vw);
+	background: var(--card);
+	border: 1px solid var(--line);
+	border-radius: 16px;
+	box-shadow: var(--shadow);
+	padding: 22px 22px 26px;
+	min-height: calc(100vh - 92px);
+	display: flex;
+	flex-direction: column;
+}
+
+/* home.css의 .header 와 완전 동일 */
+.header {
+	display: flex;
+	align-items: center;
+	padding: 6px 4px 14px;
+	border-bottom: 1px solid var(--line);
+}
+
+/* home.css의 .logo 와 완전 동일 */
 .logo {
-	font-weight: 900;
 	font-size: 22px;
+	font-weight: 900;
 	color: var(--text);
 	text-decoration: none;
+	white-space: nowrap;
 }
 
 .logo:hover {
 	opacity: .85;
 }
 
-/* 가운데 카드 */
-.wrap {
-	min-height: calc(100vh - 72px);
-	display: grid;
-	place-items: center;
-	padding: 24px;
+/* 큰 카드 내부의 로그인 박스 중앙 정렬 */
+.login-wrap {
+	flex: 1;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	padding: 40px 0;
 }
 
-.card {
+/* 작은 로그인 박스 */
+.login-box {
 	width: 100%;
-	max-width: 420px;
-	background: var(--card);
+	max-width: 400px;
+	background: #ffffff;
 	border: 1px solid var(--line);
-	border-radius: var(--radius);
-	box-shadow: var(--shadow);
-	padding: 26px;
+	border-radius: 16px;
+	box-shadow: 0 4px 20px rgba(0, 0, 0, 0.03);
+	padding: 32px 28px;
 }
 
 .title {
@@ -65,15 +93,14 @@ body {
 }
 
 .sub {
-	margin: 0 0 16px;
+	margin: 0 0 20px;
 	color: var(--muted);
 	font-size: 14px;
 	line-height: 1.5;
 }
 
-/* 메시지 */
 .error {
-	margin: 0 0 12px;
+	margin: 0 0 16px;
 	padding: 10px 12px;
 	border-radius: 12px;
 	background: rgba(220, 38, 38, .08);
@@ -83,7 +110,7 @@ body {
 }
 
 .info {
-	margin: 0 0 12px;
+	margin: 0 0 16px;
 	padding: 10px 12px;
 	border-radius: 12px;
 	background: rgba(16, 185, 129, .10);
@@ -95,7 +122,7 @@ body {
 .form {
 	display: flex;
 	flex-direction: column;
-	gap: 12px;
+	gap: 16px;
 }
 
 .field {
@@ -111,40 +138,43 @@ body {
 
 .input {
 	height: 44px;
-	border-radius: 12px;
+	border-radius: 10px;
 	border: 1px solid var(--line);
-	padding: 0 12px;
+	padding: 0 14px;
 	font-size: 14px;
 	outline: none;
-	background: #fff;
+	background: #f8fafc;
+	transition: all 0.2s ease;
 }
 
 .input:focus {
+	background: #fff;
 	border-color: rgba(17, 24, 39, .45);
 	box-shadow: 0 0 0 4px rgba(17, 24, 39, .08);
 }
 
-/* 버튼 */
 .btn {
-	height: 44px;
-	border-radius: 12px;
+	height: 46px;
+	border-radius: 10px;
 	border: 1px solid transparent;
-	font-weight: 900;
+	font-weight: 800;
 	cursor: pointer;
-	font-size: 14px;
+	font-size: 15px;
+	margin-top: 6px;
 }
 
 .btn-primary {
 	background: var(--primary);
 	color: #fff;
+	transition: background-color 0.2s ease;
 }
 
 .btn-primary:hover {
-	opacity: .92;
+	opacity: .9;
 }
 
 .links {
-	margin-top: 14px;
+	margin-top: 18px;
 	display: flex;
 	justify-content: center;
 	gap: 6px;
@@ -154,7 +184,7 @@ body {
 
 .link {
 	color: var(--text);
-	font-weight: 900;
+	font-weight: 800;
 	text-decoration: none;
 }
 
