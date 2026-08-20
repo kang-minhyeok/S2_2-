@@ -1,0 +1,14 @@
+package org.tukorea.guardhub.repository;
+
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.tukorea.guardhub.domain.News;
+
+import java.util.List;
+
+public interface NewsRepository extends JpaRepository<News, Long> {
+    // 최신순으로 기사 전체 조회
+    List<News> findAllByOrderByIdDesc();
+    
+    // 카테고리별 조회 (필터링용)
+    List<News> findByCategoryOrderByIdDesc(String category);
+}
